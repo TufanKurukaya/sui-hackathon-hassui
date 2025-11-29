@@ -329,6 +329,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         return <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{rank}</span>;
     }
   };
+  
 
   // Blockchain'e oy gönder
   const handleLike = async (docId: string) => {
@@ -840,7 +841,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   {/* Action Buttons */}
                   <div className="flex gap-4">
                     {/* Walrus Link Button */}
-                    <motion.button
+                    {/* <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => openWalrusLink(selectedDoc.blobId, selectedDoc.title)}
@@ -857,24 +858,25 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                       <ExternalLink className="w-6 h-6" />
                       {selectedDoc.blobId.startsWith('blob') ? 'Örnek Veri' : 'Dosyayı Görüntüle'}
                     </motion.button>
-
+ */}
                     {/* Download Button - Sadece gerçek dosyalar için */}
-                    {!selectedDoc.blobId.startsWith('blob') && (
+                    {/* Download Button */}
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => downloadWalrusFile(selectedDoc.blobId, selectedDoc.title)}
-                        className={`flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
-                          isDark 
-                            ? 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-500 hover:to-green-400' 
+                        disabled={selectedDoc.blobId.startsWith('blob')}
+                        className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
+                          selectedDoc.blobId.startsWith('blob')
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : isDark
+                            ? 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-500 hover:to-green-400'
                             : 'bg-gradient-to-r from-green-500 to-green-400 text-white hover:from-green-400 hover:to-green-300'
                         }`}
                       >
                         <FileText className="w-6 h-6" />
-                        İndir (.pdf)
+                        {!selectedDoc.blobId.startsWith('blob') ? 'İndir (.pdf)' : 'İndirilemez'}
                       </motion.button>
-                    )}
-
                     {/* Like Button */}
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -890,7 +892,21 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                       <Heart className="w-6 h-6" />
                       {isVoting ? '...' : selectedDoc.likes}
                     </motion.button>
+                    {/* report butonu */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleReport(selectedDoc.id)}
+                    className={`flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
+                      isDark
+                        ? 'bg-red-600 text-white hover:bg-red-500'
+                        : 'bg-red-500 text-white hover:bg-red-400'
+                    }`}
+                  >
+                    ⚠️ Report
+                  </motion.button>
                   </div>
+
 
                   {/* Blob ID gösterimi */}
                   {!selectedDoc.blobId.startsWith('blob') && (
