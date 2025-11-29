@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 
 import '@mysten/dapp-kit/dist/index.css';
 import './index.css';
+import { BrowserRouter } from 'react-router-dom';
 
 import {
   createNetworkConfig,
@@ -40,7 +41,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             },
           ]}
         >
-          <App />
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
         </WalletProvider>
       </SuiClientProvider>
     </QueryClientProvider>
