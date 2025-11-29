@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, FileText, Award, Trophy, Medal, ArrowLeft, Edit2, Check, X, Heart, Loader2 } from 'lucide-react';
+import { Moon, Sun, FileText, Award, Trophy, Medal, ArrowLeft, Edit2, Check, X, Heart, Loader2, Copy } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useDocuments } from '../lib/hooks';
@@ -10,6 +11,15 @@ interface NFT {
   name: string;
   image: string;
   rarity: 'common' | 'rare' | 'legendary';
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  likes: number;
+  blobId: string;
+  category?: string;
 }
 
 type ProfilePageProps = {
@@ -29,6 +39,8 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
   
   const isDark = theme === 'dark';
   const [isOwner, setIsOwner] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [copiedBlobId, setCopiedBlobId] = useState(false);
 
   // Wallet ve blockchain hooks
   const account = useCurrentAccount();
@@ -103,6 +115,44 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
   const handleCancelAbout = () => {
     setTempAboutMe(aboutMe);
     setIsEditingAbout(false);
+  };
+
+  // Blob ID kopyalama
+  const handleCopyBlobId = async (blobId: string) => {
+    try {
+      await navigator.clipboard.writeText(blobId);
+      setCopiedBlobId(true);
+      setTimeout(() => setCopiedBlobId(false), 2000);
+    } catch (err) {
+      console.error('Kopyalama hatası:', err);
+    }
+  };
+
+  // Dosyayı indirme
+  const downloadWalrusFile = async (blobId: string, filename: string) => {
+    try {
+      const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
+      const response = await fetch(walrusUrl);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      let finalFilename = filename;
+      if (!filename.includes('.')) {
+        finalFilename = `${filename}.pdf`;
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = finalFilename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Dosya indirilemedi. Lütfen tekrar deneyin.');
+    }
   };
 
   // Get current logged-in user's address from localStorage
@@ -481,6 +531,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 + index * 0.05 }}
                 whileHover={{ scale: 1.03 }}
+                onClick={() => setSelectedProject(project)}
                 className={`p-4 rounded-xl border-2 cursor-pointer ${
                   isDark
                     ? 'bg-[#412B6B]/50 border-[#5C3E94]/40 hover:border-[#F25912]/60 hover:shadow-xl'
@@ -515,12 +566,158 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                   <Heart className="w-3 h-3" />
                   {project.likes} beğeni
                 </div>
+                <p className={`text-[10px] mt-2 text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
+                  Tıklayarak detayları görüntüleyin
+                </p>
               </motion.div>
             ))}
           </div>
           )}
         </motion.div>
       </div>
+
+      {/* Project Detail Modal */}
+      <AnimatePresence>
+        {selectedProject && (
+          <>
+            {/* Backdrop with blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProject(null)}
+              className="fixed inset-0 z-40"
+              style={{
+                backdropFilter: 'blur(10px)',
+                backgroundColor: isDark ? 'rgba(33, 24, 50, 0.8)' : 'rgba(236, 235, 222, 0.8)'
+              }}
+            />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-8"
+            >
+              <div
+                className={`relative w-full max-w-2xl rounded-2xl shadow-2xl border-2 overflow-hidden ${
+                  isDark 
+                    ? 'bg-[#412B6B] border-[#5C3E94]' 
+                    : 'bg-white border-[#C1BAA1]'
+                }`}
+              >
+                {/* Close Button */}
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setSelectedProject(null)}
+                  className={`absolute top-4 right-4 z-10 p-2 rounded-full ${
+                    isDark 
+                      ? 'bg-[#5C3E94] hover:bg-[#F25912]' 
+                      : 'bg-[#A59D84] hover:bg-[#C1BAA1]'
+                  }`}
+                >
+                  <X className="w-6 h-6 text-white" />
+                </motion.button>
+
+                {/* Modal Header */}
+                <div className={`p-8 border-b ${isDark ? 'border-[#5C3E94]/30' : 'border-[#C1BAA1]/30'}`}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-[#5C3E94]/30' : 'bg-[#A59D84]/20'
+                    }`}>
+                      <FileText className={`w-8 h-8 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
+                    </div>
+                    <div>
+                      <h2 className={`text-3xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                        {selectedProject.title}
+                      </h2>
+                      {selectedProject.category && (
+                        <span className={`text-sm px-3 py-1 rounded-full mt-2 inline-block ${
+                          isDark ? 'bg-[#5C3E94]/50 text-slate-300' : 'bg-[#A59D84]/20 text-[#A59D84]'
+                        }`}>
+                          {selectedProject.category}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-8 space-y-6">
+                  {/* Açıklama */}
+                  <div>
+                    <h3 className={`text-xl font-semibold mb-3 ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                      Proje Açıklaması
+                    </h3>
+                    <p className={`text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {selectedProject.description}
+                    </p>
+                  </div>
+
+                  {/* Blob ID */}
+                  <div className={`p-4 rounded-xl ${isDark ? 'bg-[#2d1f45]' : 'bg-gray-100'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Walrus Blob ID
+                      </h4>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleCopyBlobId(selectedProject.blobId)}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium ${
+                          copiedBlobId
+                            ? 'bg-green-500 text-white'
+                            : isDark 
+                              ? 'bg-[#5C3E94] text-white hover:bg-[#F25912]' 
+                              : 'bg-[#A59D84] text-white hover:bg-[#A59D84]/80'
+                        }`}
+                      >
+                        {copiedBlobId ? (
+                          <><CheckCircle className="w-3 h-3" /> Kopyalandı</>
+                        ) : (
+                          <><Copy className="w-3 h-3" /> Kopyala</>
+                        )}
+                      </motion.button>
+                    </div>
+                    <p className={`text-sm font-mono break-all ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {selectedProject.blobId}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4">
+                    {/* Download Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => downloadWalrusFile(selectedProject.blobId, selectedProject.title)}
+                      className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
+                        isDark
+                          ? 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-500 hover:to-green-400'
+                          : 'bg-gradient-to-r from-green-500 to-green-400 text-white hover:from-green-400 hover:to-green-300'
+                      }`}
+                    >
+                      <FileText className="w-6 h-6" />
+                      İndir (.pdf)
+                    </motion.button>
+                  </div>
+
+                  {/* Beğeni bilgisi (sadece görüntüleme) */}
+                  <div className={`flex items-center justify-center gap-2 pt-4 border-t ${isDark ? 'border-[#5C3E94]/30' : 'border-[#C1BAA1]/30'}`}>
+                    <Heart className={`w-5 h-5 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
+                    <span className={`text-lg font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {selectedProject.likes} beğeni
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
