@@ -257,21 +257,63 @@ export function useDocuments() {
         order: "descending",
       });
 
-      const docs: Document[] = events.data.map((event) => {
-        const parsedJson = event.parsedJson as any;
-        return {
-          id: parsedJson.document_id,
-          title: parsedJson.title,
-          description: "", // Event'te yok, ayrıca çekilmeli
-          walrusBlobId: "",
-          uploader: parsedJson.uploader,
-          uploadTimestamp: Number(parsedJson.timestamp),
-          votes: 0,
-          category: "",
-        };
+      // DocumentLibrary'nin dynamic field'larını çek
+      const dynamicFields = await client.getDynamicFields({
+        parentId: DOCUMENT_LIBRARY_ID,
       });
 
-      setDocuments(docs);
+      // Her dynamic field için içeriği çek
+      const docsFromFields: Document[] = [];
+      
+      for (const field of dynamicFields.data) {
+        try {
+          const fieldObject = await client.getDynamicFieldObject({
+            parentId: DOCUMENT_LIBRARY_ID,
+            name: field.name,
+          });
+          
+          if (fieldObject.data?.content?.dataType === "moveObject") {
+            const fields = fieldObject.data.content.fields as any;
+            
+            // value içindeki fields'ı kontrol et (nested olabilir)
+            const docFields = fields.value?.fields || fields.value || fields;
+            
+            docsFromFields.push({
+              id: fieldObject.data.objectId,
+              title: docFields.title || "",
+              description: docFields.description || "",
+              walrusBlobId: docFields.walrus_blob_id || docFields.blob_id || "",
+              uploader: docFields.uploader || docFields.owner || "",
+              uploadTimestamp: Number(docFields.upload_timestamp || docFields.timestamp || 0),
+              votes: Number(docFields.votes || 0),
+              category: docFields.category || "",
+            });
+          }
+        } catch (err) {
+          console.warn('Could not fetch dynamic field:', field.name);
+        }
+      }
+
+      // Eğer dynamic field'lardan document gelmediyse, event'lerden oluştur
+      if (docsFromFields.length > 0) {
+        setDocuments(docsFromFields);
+      } else {
+        // Fallback: Event'lerden oluştur (walrusBlobId event'te yok - Move contract güncellemesi gerekli)
+        const docsFromEvents: Document[] = events.data.map((event) => {
+          const parsedJson = event.parsedJson as any;
+          return {
+            id: parsedJson.document_id,
+            title: parsedJson.title || "",
+            description: parsedJson.description || "",
+            walrusBlobId: parsedJson.walrus_blob_id || "",
+            uploader: parsedJson.uploader,
+            uploadTimestamp: Number(parsedJson.timestamp || 0),
+            votes: 0,
+            category: parsedJson.category || "",
+          };
+        });
+        setDocuments(docsFromEvents);
+      }
     } catch (err) {
       console.error("Error fetching documents:", err);
     } finally {

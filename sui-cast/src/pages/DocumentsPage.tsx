@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Upload, FileText, Heart, Trophy, Medal, Award, Moon, Sun, User, X, ExternalLink, Loader2, LogOut } from 'lucide-react';
+import { Search, Upload, FileText, Heart, Trophy, Medal, Award, Moon, Sun, User, X, ExternalLink, Loader2, LogOut, CloudUpload, CheckCircle, AlertCircle } from 'lucide-react';
 import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit';
 import {
   useCreateStudentProfile,
@@ -43,6 +43,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     walrusBlobId: '',
     category: '',
   });
+  
+  // Walrus upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [walrusUploading, setWalrusUploading] = useState(false);
+  const [walrusUploadStatus, setWalrusUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [walrusError, setWalrusError] = useState<string | null>(null);
+  
   const isDark = theme === 'dark';
 
   // Sui Hooks - Wallet bağlantısı
@@ -126,10 +133,106 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     }
   };
 
-  // Döküman yükle
+  // Walrus'a dosya yükle
+  const uploadToWalrus = async (file: File): Promise<string> => {
+    setWalrusUploading(true);
+    setWalrusUploadStatus('uploading');
+    setWalrusError(null);
+
+    // Birden fazla proxy endpoint dene (farklı Walrus publisher'lar)
+    const PROXY_ENDPOINTS = [
+      '/walrus-api',    // https://publisher.walrus-testnet.walrus.space
+      '/walrus-api-2',  // https://wal-publisher-testnet.staketab.org
+      '/walrus-api-3',  // https://walrus-testnet-publisher.nodes.guru
+      '/walrus-api-4',  // https://testnet-publisher.walrus.graphyte.dev
+    ];
+
+    console.log('Walrus\'a yükleniyor...');
+    console.log('Dosya:', file.name, 'Boyut:', file.size, 'Tip:', file.type);
+
+    let lastError: Error | null = null;
+
+    for (const proxyEndpoint of PROXY_ENDPOINTS) {
+      try {
+        console.log(`Deneniyor: ${proxyEndpoint}`);
+        
+        const response = await fetch(`${proxyEndpoint}/v1/blobs?epochs=5`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+          },
+          body: file,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn(`${proxyEndpoint} başarısız: ${response.status} - ${errorText}`);
+          lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+          continue;
+        }
+
+        const result = await response.json();
+        console.log('Walrus response (full):', JSON.stringify(result, null, 2));
+        
+        // Response yapısı: { newlyCreated: { blobObject: { blobId: "..." } } } 
+        // veya { alreadyCertified: { blobId: "..." } }
+        const blobId = result.newlyCreated?.blobObject?.blobId || 
+                       result.alreadyCertified?.blobId ||
+                       result.blobId;
+        
+        console.log('Parsed blobId:', blobId);
+        console.log('newlyCreated:', result.newlyCreated);
+        console.log('alreadyCertified:', result.alreadyCertified);
+        
+        if (!blobId) {
+          console.warn('Blob ID bulunamadı:', result);
+          lastError = new Error('Blob ID alınamadı');
+          continue;
+        }
+
+        setWalrusUploadStatus('success');
+        setUploadForm(prev => ({ ...prev, walrusBlobId: blobId }));
+        console.log('✅ Walrus upload başarılı! Blob ID:', blobId);
+        console.log('🔗 Walrus URL:', `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`);
+        return blobId;
+      } catch (err) {
+        console.warn(`${proxyEndpoint} hatası:`, err);
+        lastError = err instanceof Error ? err : new Error(String(err));
+        continue;
+      }
+    }
+
+    // Tüm endpoint'ler başarısız olduysa
+    console.error('Walrus upload hatası - tüm publisher\'lar başarısız:', lastError);
+    setWalrusUploadStatus('error');
+    setWalrusError(lastError?.message || 'Tüm Walrus publisher\'lar başarısız oldu');
+    throw lastError || new Error('Walrus upload başarısız');
+  };
+
+  // Dosya seçildiğinde
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    
+    // Otomatik olarak Walrus'a yükle
+    try {
+      await uploadToWalrus(file);
+    } catch {
+      // Hata zaten state'te
+    }
+  };
+
+  // Döküman yükle (blockchain'e kaydet)
   const handleUploadDocument = async () => {
     if (!profile) {
       alert('Önce profil oluşturmalısınız!');
+      return;
+    }
+
+    if (!uploadForm.walrusBlobId) {
+      alert('Lütfen önce bir dosya yükleyin!');
       return;
     }
 
@@ -141,7 +244,10 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         uploadForm.walrusBlobId,
         uploadForm.category
       );
+      // Form'u sıfırla
       setUploadForm({ title: '', description: '', walrusBlobId: '', category: '' });
+      setSelectedFile(null);
+      setWalrusUploadStatus('idle');
       setShowUploadModal(false);
       setTimeout(() => {
         refetchProfile();
@@ -252,9 +358,50 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     }
   };
 
-  const openWalrusLink = (blobId: string) => {
-    const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/${blobId}`;
+  const openWalrusLink = (blobId: string, title?: string) => {
+    // Walrus Aggregator URL
+    const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
+    
+    // Blob ID'yi konsola yazdır (debug için)
+    console.log('Opening Walrus file:', { blobId, title, url: walrusUrl });
+    
+    // Direkt URL'i aç - tarayıcı dosyayı indirecek
+    // Kullanıcı indirilen dosyanın uzantısını .pdf olarak değiştirmeli
     window.open(walrusUrl, '_blank');
+  };
+  
+  // Dosyayı fetch edip doğru isimle indirme fonksiyonu
+  const downloadWalrusFile = async (blobId: string, filename: string) => {
+    try {
+      const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
+      console.log('Downloading:', walrusUrl);
+      
+      const response = await fetch(walrusUrl);
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      
+      // Dosya adına uzantı ekle (yoksa)
+      let finalFilename = filename;
+      if (!filename.includes('.')) {
+        finalFilename = `${filename}.pdf`; // Varsayılan olarak PDF
+      }
+      
+      // Dosyayı indir
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = finalFilename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log('Download complete:', finalFilename);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Dosya indirilemedi. Lütfen tekrar deneyin.');
+    }
   };
 
   // Arama filtreleme
@@ -696,16 +843,37 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => openWalrusLink(selectedDoc.blobId)}
+                      onClick={() => openWalrusLink(selectedDoc.blobId, selectedDoc.title)}
+                      disabled={selectedDoc.blobId.startsWith('blob')} // Mock data için devre dışı
                       className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
-                        isDark 
+                        selectedDoc.blobId.startsWith('blob')
+                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                          : isDark 
                           ? 'bg-gradient-to-r from-[#5C3E94] to-[#412B6B] text-white hover:from-[#6C4EA4] hover:to-[#5C3E94]' 
                           : 'bg-gradient-to-r from-[#A59D84] to-[#C1BAA1] text-white hover:from-[#B5AD94] hover:to-[#D1CAB1]'
                       }`}
+                      title={selectedDoc.blobId.startsWith('blob') ? 'Bu örnek veri, gerçek dosya değil' : `Blob ID: ${selectedDoc.blobId}`}
                     >
                       <ExternalLink className="w-6 h-6" />
-                      Walrus Linkine Git
+                      {selectedDoc.blobId.startsWith('blob') ? 'Örnek Veri' : 'Dosyayı Görüntüle'}
                     </motion.button>
+
+                    {/* Download Button - Sadece gerçek dosyalar için */}
+                    {!selectedDoc.blobId.startsWith('blob') && (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => downloadWalrusFile(selectedDoc.blobId, selectedDoc.title)}
+                        className={`flex items-center justify-center gap-3 py-4 px-6 rounded-xl text-lg font-semibold shadow-lg ${
+                          isDark 
+                            ? 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-500 hover:to-green-400' 
+                            : 'bg-gradient-to-r from-green-500 to-green-400 text-white hover:from-green-400 hover:to-green-300'
+                        }`}
+                      >
+                        <FileText className="w-6 h-6" />
+                        İndir (.pdf)
+                      </motion.button>
+                    )}
 
                     {/* Like Button */}
                     <motion.button
@@ -724,10 +892,21 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     </motion.button>
                   </div>
 
+                  {/* Blob ID gösterimi */}
+                  {!selectedDoc.blobId.startsWith('blob') && (
+                    <div className={`mt-2 p-2 rounded-lg ${isDark ? 'bg-[#2d1f45]' : 'bg-gray-100'}`}>
+                      <p className={`text-xs font-mono break-all ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span className="font-semibold">Blob ID:</span> {selectedDoc.blobId}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Info Text */}
                   <p className={`text-xs text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
-                    Walrus linkine tıkladığınızda dosya içeriğini görüntüleyebilirsiniz. 
-                    Beğeni butonu Sui blockchain&apos;e sinyal gönderir.
+                    {selectedDoc.blobId.startsWith('blob') 
+                      ? 'Bu örnek veridir. Gerçek dosya görmek için yeni bir döküman yükleyin.'
+                      : 'Dosyayı görüntülemek veya indirmek için butonları kullanın. Beğeni butonu Sui blockchain\'e sinyal gönderir.'
+                    }
                   </p>
                 </div>
               </div>
@@ -798,6 +977,83 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
                 {/* Modal Body */}
                 <div className="p-6 space-y-4">
+                  {/* Dosya Yükleme Alanı */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Dosya Seç (Walrus'a yüklenecek)
+                    </label>
+                    <div
+                      className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                        walrusUploadStatus === 'success'
+                          ? isDark ? 'border-green-500/60 bg-green-500/10' : 'border-green-500/60 bg-green-50'
+                          : walrusUploadStatus === 'error'
+                          ? isDark ? 'border-red-500/60 bg-red-500/10' : 'border-red-500/60 bg-red-50'
+                          : isDark 
+                          ? 'border-[#5C3E94]/40 hover:border-[#F25912]/60 bg-[#2d1f45]' 
+                          : 'border-[#C1BAA1]/40 hover:border-[#A59D84]/60 bg-white'
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        onChange={handleFileSelect}
+                        accept=".pdf,.doc,.docx,.txt,.md"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        disabled={walrusUploading}
+                      />
+                      
+                      {walrusUploading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
+                          <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            Walrus'a yükleniyor...
+                          </p>
+                        </div>
+                      ) : walrusUploadStatus === 'success' ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <CheckCircle className="w-8 h-8 text-green-500" />
+                          <p className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                            {selectedFile?.name} yüklendi!
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            Başka bir dosya seçmek için tıklayın
+                          </p>
+                        </div>
+                      ) : walrusUploadStatus === 'error' ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <AlertCircle className="w-8 h-8 text-red-500" />
+                          <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                            Yükleme başarısız!
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {walrusError || 'Tekrar deneyin'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <CloudUpload className={`w-8 h-8 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
+                          <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            Dosya seçmek için tıklayın veya sürükleyin
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                            PDF, DOC, DOCX, TXT, MD desteklenir
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Walrus Blob ID (otomatik doldurulur veya manuel girilebilir) */}
+                  {uploadForm.walrusBlobId && (
+                    <div className={`p-3 rounded-lg ${isDark ? 'bg-[#2d1f45]' : 'bg-gray-50'}`}>
+                      <p className={`text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Walrus Blob ID:
+                      </p>
+                      <p className={`text-sm font-mono break-all ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                        {uploadForm.walrusBlobId}
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       Başlık
@@ -823,25 +1079,8 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                       value={uploadForm.description}
                       onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
                       placeholder="Döküman açıklaması"
-                      rows={3}
+                      rows={2}
                       className={`w-full p-3 rounded-lg border outline-none resize-none ${
-                        isDark 
-                          ? 'bg-[#2d1f45] border-[#5C3E94]/40 text-slate-100 placeholder-slate-500 focus:border-[#F25912]' 
-                          : 'bg-white border-[#C1BAA1]/40 text-slate-900 placeholder-[#A59D84] focus:border-[#A59D84]'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Walrus Blob ID
-                    </label>
-                    <input
-                      type="text"
-                      value={uploadForm.walrusBlobId}
-                      onChange={(e) => setUploadForm({ ...uploadForm, walrusBlobId: e.target.value })}
-                      placeholder="Walrus'a yüklediğiniz dosyanın blob ID'si"
-                      className={`w-full p-3 rounded-lg border outline-none ${
                         isDark 
                           ? 'bg-[#2d1f45] border-[#5C3E94]/40 text-slate-100 placeholder-slate-500 focus:border-[#F25912]' 
                           : 'bg-white border-[#C1BAA1]/40 text-slate-900 placeholder-[#A59D84] focus:border-[#A59D84]'
@@ -853,17 +1092,23 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       Kategori
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={uploadForm.category}
                       onChange={(e) => setUploadForm({ ...uploadForm, category: e.target.value })}
-                      placeholder="Örn: Matematik, Fizik, Programlama"
                       className={`w-full p-3 rounded-lg border outline-none ${
                         isDark 
-                          ? 'bg-[#2d1f45] border-[#5C3E94]/40 text-slate-100 placeholder-slate-500 focus:border-[#F25912]' 
-                          : 'bg-white border-[#C1BAA1]/40 text-slate-900 placeholder-[#A59D84] focus:border-[#A59D84]'
+                          ? 'bg-[#2d1f45] border-[#5C3E94]/40 text-slate-100 focus:border-[#F25912]' 
+                          : 'bg-white border-[#C1BAA1]/40 text-slate-900 focus:border-[#A59D84]'
                       }`}
-                    />
+                    >
+                      <option value="">Kategori seçin</option>
+                      <option value="42 Project">42 Project</option>
+                      <option value="Programlama">Programlama</option>
+                      <option value="Matematik">Matematik</option>
+                      <option value="Fizik">Fizik</option>
+                      <option value="Blockchain">Blockchain</option>
+                      <option value="Diğer">Diğer</option>
+                    </select>
                   </div>
 
                   {/* Upload Button */}
@@ -881,15 +1126,15 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     {isUploading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Yükleniyor...
+                        Blockchain'e kaydediliyor...
                       </span>
                     ) : (
-                      'Dökümanı Yükle'
+                      'Dökümanı Kaydet'
                     )}
                   </motion.button>
 
                   <p className={`text-xs text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
-                    Döküman bilgileri Sui blockchain'e kaydedilecektir.
+                    Dosya Walrus'a, bilgiler Sui blockchain'e kaydedilir.
                   </p>
                 </div>
               </div>
