@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DocumentsPage from './pages/DocumentsPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -28,7 +29,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LoginPage theme={theme} setTheme={setTheme} />} />
       <Route path="/app" element={<DocumentsPage theme={theme} setTheme={setTheme} />} />
-      {/* Bilinmeyen path -> / */}
+      <Route path="/profile/:address?" element={<ProfilePage theme={theme} setTheme={setTheme} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

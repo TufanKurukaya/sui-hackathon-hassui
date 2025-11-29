@@ -152,6 +152,14 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
     });
     setZkStatus('zkLogin oturumu aktif. Bu adresle Sui üzerinde işlem yapabilirsin.');
     
+    // 💾 Save to localStorage
+    localStorage.setItem('zkLoginAddress', address);
+    localStorage.setItem('zkLoginUserInfo', JSON.stringify({
+      email: decoded.email,
+      name: decoded.name,
+      picture: decoded.picture,
+    }));
+    
     // 🚀 Auto-redirect after zkLogin
     setTimeout(() => {
       navigate('/app');

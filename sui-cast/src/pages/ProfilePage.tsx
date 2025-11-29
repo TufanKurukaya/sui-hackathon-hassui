@@ -1,0 +1,472 @@
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Moon, Sun, FileText, Award, Trophy, Medal, ArrowLeft, Edit2, Check, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+
+interface UserProject {
+  id: string;
+  title: string;
+  description: string;
+  likes: number;
+}
+
+interface NFT {
+  id: string;
+  name: string;
+  image: string;
+  rarity: 'common' | 'rare' | 'legendary';
+}
+
+type ProfilePageProps = {
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+};
+
+function ProfilePage({ theme, setTheme }: ProfilePageProps) {
+  const navigate = useNavigate();
+  const { address } = useParams<{ address?: string }>();
+  
+  const [aboutMe, setAboutMe] = useState('42 öğrencisiyim. C, C++ ve sistem programlama konularında uzmanlaşıyorum. Blockchain ve Web3 teknolojilerine ilgi duyuyorum.');
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [tempAboutMe, setTempAboutMe] = useState(aboutMe);
+  const [profileAddress, setProfileAddress] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
+  
+  const isDark = theme === 'dark';
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Mock data
+  const userRank: number = 1;
+  const userPoints = 1250;
+
+  const userProjects: UserProject[] = [
+    { id: '1', title: 'Push_Swap', description: 'Sıralama algoritması', likes: 124 },
+    { id: '2', title: 'Philosophers', description: 'Threading projesi', likes: 98 },
+    { id: '3', title: 'Minishell', description: 'Shell uygulaması', likes: 156 },
+    { id: '4', title: 'Cub3D', description: '3D oyun motoru', likes: 87 },
+    { id: '5', title: 'Webserv', description: 'HTTP server', likes: 112 },
+    { id: '6', title: 'ft_containers', description: 'STL containers', likes: 95 },
+  ];
+
+  const nfts: NFT[] = [
+    { id: '1', name: 'Golden Trophy', image: '🏆', rarity: 'legendary' },
+    { id: '2', name: 'Silver Medal', image: '🥈', rarity: 'rare' },
+    { id: '3', name: 'Bronze Star', image: '⭐', rarity: 'common' },
+  ];
+
+  const getRankIcon = () => {
+    switch (userRank) {
+      case 1:
+        return <Trophy className="w-12 h-12 text-yellow-400" />;
+      case 2:
+        return <Medal className="w-12 h-12 text-gray-300" />;
+      case 3:
+        return <Award className="w-12 h-12 text-orange-400" />;
+      default:
+        return <span className="text-4xl font-bold">{userRank}</span>;
+    }
+  };
+
+  const getRarityColor = (rarity: string) => {
+    switch (rarity) {
+      case 'legendary':
+        return isDark ? 'from-yellow-600 to-yellow-400' : 'from-yellow-500 to-yellow-300';
+      case 'rare':
+        return isDark ? 'from-purple-600 to-purple-400' : 'from-purple-500 to-purple-300';
+      default:
+        return isDark ? 'from-gray-600 to-gray-400' : 'from-gray-500 to-gray-300';
+    }
+  };
+
+  const handleEditAbout = () => {
+    setTempAboutMe(aboutMe);
+    setIsEditingAbout(true);
+  };
+
+  const handleSaveAbout = () => {
+    setAboutMe(tempAboutMe);
+    setIsEditingAbout(false);
+  };
+
+  const handleCancelAbout = () => {
+    setTempAboutMe(aboutMe);
+    setIsEditingAbout(false);
+  };
+
+  // Get current logged-in user's address from localStorage
+  useEffect(() => {
+    const zkAddress = localStorage.getItem('zkLoginAddress');
+    const zkUserInfo = localStorage.getItem('zkLoginUserInfo');
+    
+    // If no address in URL, show current user's profile
+    if (!address && zkAddress) {
+      setProfileAddress(zkAddress);
+      if (zkUserInfo) {
+        try {
+          setUserInfo(JSON.parse(zkUserInfo));
+        } catch (e) {
+          console.error('Failed to parse user info:', e);
+        }
+      }
+    } else if (address) {
+      // Show specific user's profile
+      setProfileAddress(address);
+      // TODO: Fetch user info from blockchain/API for this address
+      // For now, if it's the current user, show their info
+      if (zkAddress === address && zkUserInfo) {
+        try {
+          setUserInfo(JSON.parse(zkUserInfo));
+        } catch (e) {
+          console.error('Failed to parse user info:', e);
+        }
+      }
+    }
+    
+    // Check if logged-in user is the profile owner
+    if (zkAddress && address && zkAddress === address) {
+      setIsOwner(true);
+    } else if (!address && zkAddress) {
+      // If no address in URL and user is logged in, they're viewing their own profile
+      setIsOwner(true);
+    } else {
+      setIsOwner(false);
+    }
+  }, [address]);
+
+  return (
+    <div
+      className="min-h-screen w-full font-sans transition-colors duration-300 overflow-auto"
+      style={isDark ? { backgroundColor: '#211832' } : { backgroundColor: '#ECEBDE' }}
+    >
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header - 3 Columns: Rank/Points | 42 Logo (Center) | Theme/Back */}
+        <div className="grid grid-cols-3 items-start gap-4">
+          {/* Left - Rank and Points */}
+          <motion.div
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="flex items-center gap-4"
+          >
+            {/* Rank Badge */}
+            <div
+              className={`w-32 h-32 rounded-2xl flex flex-col items-center justify-center border-4 ${
+                isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
+              }`}
+            >
+              {getRankIcon()}
+              <span className={`text-sm mt-2 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Sıralama
+              </span>
+            </div>
+            {/* Points Card */}
+            <div
+              className={`h-32 flex flex-col justify-center px-6 rounded-xl border-2 ${
+                isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
+              }`}
+            >
+              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
+                Toplam Puan
+              </p>
+              <p className={`text-3xl font-bold ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
+                {userPoints}
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Center - 42 Logo - Expanded to fill top */}
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="flex justify-center"
+          >
+            <div
+              className={`h-32 w-full rounded-2xl flex items-center justify-center border-4 ${
+                isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
+              }`}
+            >
+              <img 
+                src="/src/assets/42-logo.svg" 
+                alt="42 School"
+                className="w-24 h-24 object-contain"
+                style={{ filter: isDark ? 'brightness(0) invert(1)' : 'none' }}
+              />
+            </div>
+          </motion.div>
+
+          {/* Right - Theme Toggle and Back Button */}
+          <motion.div
+            initial={{ x: 50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="flex items-center justify-end gap-3"
+          >
+            {/* Theme Toggle - Small toggle style like DocumentsPage */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="h-32 flex items-center gap-3 px-4 rounded-2xl border-2"
+              style={isDark 
+                ? { borderColor: '#5C3E94', backgroundColor: '#412B6B' } 
+                : { borderColor: '#A59D84', backgroundColor: 'white' }
+              }
+            >
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 backdrop-blur-sm border ${
+                  isDark ? 'border-[#5C3E94]/40' : 'border-[#A59D84]/40'
+                }`}
+                style={isDark 
+                  ? { backgroundColor: '#2d1f45' } 
+                  : { backgroundColor: '#C1BAA1' }
+                }
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <motion.div
+                  layout
+                  transition={{
+                    type: "spring",
+                    stiffness: 700,
+                    damping: 30
+                  }}
+                  className={`absolute top-0.5 w-6 h-6 rounded-full shadow-md flex items-center justify-center ${
+                    isDark ? 'left-7' : 'left-0.5'
+                  }`}
+                  style={isDark 
+                    ? { backgroundColor: '#5C3E94' } 
+                    : { background: 'linear-gradient(135deg, #A59D84 0%, #C1BAA1 100%)' }
+                  }
+                >
+                  <AnimatePresence mode="wait">
+                    {isDark ? (
+                      <motion.div
+                        key="moon"
+                        initial={{ rotate: -180, opacity: 0 }}
+                        animate={{ rotate: 0, opacity: 1 }}
+                        exit={{ rotate: 180, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Moon className="w-3.5 h-3.5 text-white" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="sun"
+                        initial={{ rotate: 180, opacity: 0 }}
+                        animate={{ rotate: 0, opacity: 1 }}
+                        exit={{ rotate: -180, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Sun className="w-3.5 h-3.5 text-white" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </motion.button>
+            </motion.div>
+
+            {/* Back to Documents Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/app')}
+              className={`h-32 flex flex-col items-center justify-center gap-2 px-6 rounded-2xl border-4 font-semibold ${
+                isDark
+                  ? 'border-[#5C3E94] bg-[#412B6B] hover:bg-[#5C3E94] text-slate-200'
+                  : 'border-[#A59D84] bg-white hover:bg-[#A59D84] text-slate-900'
+              }`}
+            >
+              <ArrowLeft className="w-8 h-8" />
+              <span className="text-sm">Dökümanlar</span>
+            </motion.button>
+          </motion.div>
+        </div>
+
+        {/* Profile Section */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className={`p-8 rounded-2xl border-2 ${
+            isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
+          }`}
+        >
+          <div className="flex items-center gap-8">
+            {/* Profile Picture */}
+            <div
+              className={`w-48 h-48 rounded-full border-4 overflow-hidden ${
+                isDark ? 'border-[#5C3E94]' : 'border-[#A59D84]'
+              }`}
+            >
+              <div
+                className={`w-full h-full flex items-center justify-center text-6xl ${
+                  isDark ? 'bg-gradient-to-br from-[#5C3E94] to-[#412B6B]' : 'bg-gradient-to-br from-[#A59D84] to-[#C1BAA1]'
+                }`}
+              >
+                {userInfo?.picture ? (
+                  <img src={userInfo.picture} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  '👤'
+                )}
+              </div>
+            </div>
+            {/* About Me */}
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className={`text-4xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {userInfo?.name || 'Hakkımda'}
+                  </h2>
+                  {profileAddress && (
+                    <p className={`text-sm mt-1 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {profileAddress.slice(0, 6)}...{profileAddress.slice(-4)}
+                    </p>
+                  )}
+                </div>
+                {!isEditingAbout && isOwner && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleEditAbout}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-colors ${
+                      isDark
+                        ? 'border-[#5C3E94] bg-[#2d1f45] hover:bg-[#5C3E94] text-slate-200'
+                        : 'border-[#A59D84] bg-[#ECEBDE] hover:bg-[#A59D84] text-slate-900'
+                    }`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span>Düzenle</span>
+                  </motion.button>
+                )}
+              </div>
+              {isEditingAbout ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={tempAboutMe}
+                    onChange={(e) => setTempAboutMe(e.target.value)}
+                    className={`w-full h-32 p-4 rounded-lg border-2 text-lg resize-none transition-colors ${
+                      isDark
+                        ? 'bg-[#2d1f45] border-[#5C3E94] text-slate-200 focus:border-[#F25912]'
+                        : 'bg-white border-[#A59D84] text-slate-900 focus:border-[#A59D84]'
+                    } focus:outline-none focus:ring-2 ${
+                      isDark ? 'focus:ring-[#F25912]/30' : 'focus:ring-[#A59D84]/30'
+                    }`}
+                    placeholder="Kendiniz hakkında bilgi yazın..."
+                  />
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleSaveAbout}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                        isDark
+                          ? 'bg-[#F25912] hover:bg-[#F25912]/80 text-white'
+                          : 'bg-[#A59D84] hover:bg-[#A59D84]/80 text-white'
+                      }`}
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Kaydet</span>
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleCancelAbout}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-semibold transition-colors ${
+                        isDark
+                          ? 'border-[#5C3E94] bg-[#2d1f45] hover:bg-[#5C3E94] text-slate-200'
+                          : 'border-[#A59D84] bg-white hover:bg-[#A59D84]/20 text-slate-900'
+                      }`}
+                    >
+                      <X className="w-4 h-4" />
+                      <span>İptal</span>
+                    </motion.button>
+                  </div>
+                </div>
+              ) : (
+                <p className={`text-lg leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {aboutMe}
+                </p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* NFT Showcase */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className={`p-6 rounded-2xl border-2 ${
+            isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
+          }`}
+        >
+          <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
+            Kazandığım NFT&apos;ler Vitrin Sayfası
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            {nfts.map((nft, index) => (
+              <motion.div
+                key={nft.id}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.3 + index * 0.1 }}
+                whileHover={{ scale: 1.05 }}
+                className={`p-6 rounded-xl bg-gradient-to-br ${getRarityColor(nft.rarity)} flex flex-col items-center justify-center cursor-pointer shadow-lg`}
+              >
+                <span className="text-6xl mb-3">{nft.image}</span>
+                <p className="text-white font-bold text-center">{nft.name}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* User Projects */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
+            Projelerim
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            {userProjects.map((project, index) => (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + index * 0.05 }}
+                whileHover={{ scale: 1.03 }}
+                className={`p-4 rounded-xl border-2 cursor-pointer ${
+                  isDark
+                    ? 'bg-[#412B6B]/50 border-[#5C3E94]/40 hover:border-[#F25912]/60 hover:shadow-xl'
+                    : 'bg-white border-[#C1BAA1]/40 hover:border-[#A59D84]/60 hover:shadow-xl'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      isDark ? 'bg-[#5C3E94]/30' : 'bg-[#A59D84]/20'
+                    }`}
+                  >
+                    <FileText className={`w-5 h-5 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
+                  </div>
+                  <h4 className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {project.title}
+                  </h4>
+                </div>
+                <p className={`text-sm mb-3 ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
+                  {project.description}
+                </p>
+                <div className={`text-xs ${isDark ? 'text-slate-500' : 'text-[#A59D84]/70'}`}>
+                  ❤️ {project.likes} beğeni
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+export default ProfilePage;
