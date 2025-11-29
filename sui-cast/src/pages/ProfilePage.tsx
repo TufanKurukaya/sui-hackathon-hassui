@@ -173,7 +173,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
             </div>
           </motion.div>
 
-          {/* Center - 42 Logo - Expanded to fill top */}
+          {/* Center - SUI-CAST Text - Expanded to fill top */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -184,12 +184,16 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                 isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
               }`}
             >
-              <img 
-                src="/src/assets/42-logo.svg" 
-                alt="42 School"
-                className="w-24 h-24 object-contain"
-                style={{ filter: isDark ? 'brightness(0) invert(1)' : 'none' }}
-              />
+              <span 
+                    className={`
+                        font-russo text-6xl tracking-widest
+                        bg-gradient-to-r from-purple-400 to-blue-500
+                        bg-clip-text text-transparent
+                        drop-shadow-[0_0_8px_rgba(120,70,255,0.35)]
+                    `}
+              >
+                SUI-CAST
+              </span>
             </div>
           </motion.div>
 

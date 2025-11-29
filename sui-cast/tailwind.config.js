@@ -6,7 +6,11 @@ module.exports = {
     "./src/**/*.{ts,tsx,js,jsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        russo: ["Russo One", "sans-serif"],
+      },
+    },
   },
   plugins: [],
 }
