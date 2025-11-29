@@ -1,5 +1,6 @@
 // src/App.tsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ConnectButton,
   useCurrentAccount,
@@ -91,16 +92,15 @@ function FloatingParticles({ isDark }: { isDark: boolean }) {
   );
 }
 
-function LoginPage() {
+type LoginPageProps = {
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+};
+
+function LoginPage({ theme, setTheme }: LoginPageProps) {
+  const navigate = useNavigate();
   const suiClient = useSuiClient();
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) return savedTheme;
-    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  const currentAccount = useCurrentAccount();
 
   const [zkLoading, setZkLoading] = useState(false);
   const [zkAddress, setZkAddress] = useState<string | null>(null);
@@ -111,17 +111,16 @@ function LoginPage() {
   } | null>(null);
   const [zkStatus, setZkStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
   const isDark = theme === 'dark';
+
+  // 🚀 Auto-redirect when wallet is connected
+  useEffect(() => {
+    if (currentAccount) {
+      setTimeout(() => {
+        navigate('/app');
+      }, 1000);
+    }
+  }, [currentAccount, navigate]);
 
   // 🔁 Google'dan dönüşte URL'deki id_token'ı yakala
   useEffect(() => {
@@ -152,7 +151,12 @@ function LoginPage() {
       picture: decoded.picture,
     });
     setZkStatus('zkLogin oturumu aktif. Bu adresle Sui üzerinde işlem yapabilirsin.');
-  }, []);
+    
+    // 🚀 Auto-redirect after zkLogin
+    setTimeout(() => {
+      navigate('/app');
+    }, 2000);
+  }, [navigate]);
 
   // 🔐 zkLogin butonu
   const handleZkLoginClick = async () => {
