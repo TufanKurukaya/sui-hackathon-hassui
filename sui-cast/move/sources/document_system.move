@@ -47,6 +47,8 @@ module document_library::document_system {
         document_id: ID,
         uploader: address,
         title: String,
+        walrus_blob_id: String,
+        category: String,
         timestamp: u64,
     }
 
@@ -135,6 +137,8 @@ module document_library::document_system {
             document_id,
             uploader: tx_context::sender(ctx),
             title: string::utf8(title),
+            walrus_blob_id: string::utf8(walrus_blob_id),
+            category: string::utf8(category),
             timestamp: clock::timestamp_ms(clock),
         });
     }

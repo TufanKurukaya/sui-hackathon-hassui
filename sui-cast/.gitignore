@@ -27,3 +27,5 @@ package-lock.json
 # Secret
 .env
 
+build/
+Move.lock
