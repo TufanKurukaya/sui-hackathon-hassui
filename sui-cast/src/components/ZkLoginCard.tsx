@@ -10,6 +10,7 @@ import {
   type ZkLoginSignatureInputs,
 } from '@mysten/sui/zklogin';
 import { jwtDecode } from 'jwt-decode';
+import { useToast } from './Toast';
 
 // -------------------- ENV & CONSTANTS -------------------- //
 const FULLNODE_URL =
@@ -66,9 +67,9 @@ function getSaltFromJwt(payload: JwtPayload): string {
 }
 
 // Function redirecting to Google OAuth
-async function startGoogleLogin() {
+async function startGoogleLogin(onError: (message: string) => void) {
   if (!GOOGLE_CLIENT_ID) {
-    alert('VITE_GOOGLE_CLIENT_ID is not defined!');
+    onError('VITE_GOOGLE_CLIENT_ID is not defined!');
     return;
   }
 
@@ -148,6 +149,7 @@ const ZkLoginCard: React.FC = () => {
   const [address, setAddress] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     // Debug: Log all URL info
@@ -235,7 +237,7 @@ const ZkLoginCard: React.FC = () => {
     try {
       setStatus('');
       setLoading(true);
-      await startGoogleLogin();
+      await startGoogleLogin((message) => showToast(message, 'error'));
     } catch (e) {
       console.error(e);
       setStatus('Error starting Google login.');

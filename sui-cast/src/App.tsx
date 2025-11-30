@@ -6,6 +6,7 @@ import { useCurrentAccount } from '@mysten/dapp-kit';
 import LoginPage from './pages/LoginPage';
 import DocumentsPage from './pages/DocumentsPage';
 import ProfilePage from './pages/ProfilePage';
+import { ToastProvider } from './components/Toast';
 
 function ProtectedRoute({ children }: { children: any }) {
   const account = useCurrentAccount();
@@ -43,7 +44,7 @@ function App() {
   }, [theme]);
 
   return (
-    <>
+    <ToastProvider theme={theme}>
       <WalletSessionManager />
   
       <Routes>
@@ -66,7 +67,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </ToastProvider>
   );
   
 }

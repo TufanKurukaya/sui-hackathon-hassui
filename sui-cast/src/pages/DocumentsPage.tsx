@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '../components/Toast';
 import { Search, Upload, FileText, Heart, Trophy, Medal, Award, Moon, Sun, User, X, ExternalLink, Loader2, LogOut, CloudUpload, CheckCircle, AlertCircle, Radio, Bell, BellRing } from 'lucide-react';
 import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit';
 import {
@@ -41,6 +42,7 @@ type DocumentsPageProps = {
 };
 
 function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -280,12 +282,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   // Upload document (save to blockchain)
   const handleUploadDocument = async () => {
     if (!profile) {
-      alert('You must create a profile first!');
+      showToast('You must create a profile first!', 'warning');
       return;
     }
 
     if (!uploadForm.walrusBlobId) {
-      alert('Please upload a file first!');
+      showToast('Please upload a file first!', 'warning');
       return;
     }
 
@@ -391,7 +393,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   };
   const handleSubmitReport = () => {
     if (!reportBlobId.trim()) {
-      alert("Please enter a Blob ID.");
+      showToast("Please enter a Blob ID.", 'warning');
       return;
     }
   
@@ -400,7 +402,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       blobId: reportBlobId,
     });
   
-    alert("Report successfully sent!");
+    showToast("Report successfully sent!", 'success');
   
     setReportBlobId("");
     setShowReportModal(false);
@@ -410,7 +412,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   // Send vote to blockchain
   const handleLike = async (docId: string) => {
     if (!address) {
-      alert('Please connect your wallet!');
+      showToast('Please connect your wallet!', 'warning');
       return;
     }
 
@@ -428,9 +430,9 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('E_ALREADY_VOTED') || errorMessage.includes('0')) {
-        alert('You have already voted for this document!');
+        showToast('You have already voted for this document!', 'error');
       } else if (errorMessage.includes('E_CANNOT_VOTE_OWN_DOCUMENT') || errorMessage.includes('1')) {
-        alert('You cannot vote for your own document!');
+        showToast('You cannot vote for your own document!', 'error');
       } else {
         console.error('Voting error:', error);
       }
@@ -474,7 +476,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       
     } catch (error) {
       console.error('Download error:', error);
-      alert('File could not be downloaded. Please try again.');
+      showToast('File could not be downloaded. Please try again.', 'error');
     }
   };
 
@@ -778,7 +780,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               if (!profile) {
-                alert('You must create a profile from the left panel first!');
+                showToast('You must create a profile from the left panel first!', 'warning');
                 return;
               }
               setShowUploadModal(true);

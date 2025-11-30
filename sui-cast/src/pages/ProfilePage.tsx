@@ -5,6 +5,7 @@ import { CheckCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentAccount } from '@mysten/dapp-kit';
 import { useDocuments } from '../lib/hooks';
+import { useToast } from '../components/Toast';
 
 interface NFT {
   id: string;
@@ -30,6 +31,7 @@ type ProfilePageProps = {
 function ProfilePage({ theme, setTheme }: ProfilePageProps) {
   const navigate = useNavigate();
   const { address } = useParams<{ address?: string }>();
+  const { showToast } = useToast();
   
   const [aboutMe, setAboutMe] = useState('I am a 42 student. I specialize in C, C++ and system programming. I am interested in Blockchain and Web3 technologies.');
   const [isEditingAbout, setIsEditingAbout] = useState(false);
@@ -151,7 +153,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
-      alert('File could not be downloaded. Please try again.');
+      showToast('File could not be downloaded. Please try again.', 'error');
     }
   };
 

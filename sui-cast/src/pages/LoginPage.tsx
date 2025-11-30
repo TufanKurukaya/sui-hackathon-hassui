@@ -16,6 +16,7 @@ import {
   jwtToAddress,
 } from '@mysten/sui/zklogin';
 import { jwtDecode } from 'jwt-decode';
+import { useToast } from '../components/Toast';
 
 // ---------- ENV ---------- //
 const GOOGLE_CLIENT_ID = import.meta.env
@@ -101,6 +102,7 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
   const navigate = useNavigate();
   const suiClient = useSuiClient();
   const currentAccount = useCurrentAccount();
+  const { showToast } = useToast();
 
   const [zkLoading, setZkLoading] = useState(false);
   const [zkAddress, setZkAddress] = useState<string | null>(null);
@@ -193,8 +195,9 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
   // 🔐 zkLogin button
   const handleZkLoginClick = async () => {
     if (!GOOGLE_CLIENT_ID) {
-      alert(
+      showToast(
         'VITE_GOOGLE_CLIENT_ID is not defined. Please check .env file.',
+        'error'
       );
       return;
     }
@@ -231,7 +234,7 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
       window.location.href = authUrl;
     } catch (err) {
       console.error('Error starting zkLogin:', err);
-      alert('An error occurred while starting zkLogin. Check the console.');
+      showToast('An error occurred while starting zkLogin. Check the console.', 'error');
       setZkLoading(false);
     }
   };
