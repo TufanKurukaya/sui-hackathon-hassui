@@ -24,7 +24,7 @@ const REDIRECT_URL =
   (import.meta.env.VITE_ZKLOGIN_REDIRECT_URL as string | undefined) ??
   window.location.origin;
 
-// ---------- JWT payload tipi ---------- //
+// ---------- JWT payload type ---------- //
 type JwtPayload = {
   email?: string;
   sub?: string;
@@ -33,7 +33,7 @@ type JwtPayload = {
   aud?: string | string[];
 };
 
-// ---------- Salt helper'ları ---------- //
+// ---------- Salt helpers ---------- //
 function hashcode(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -116,7 +116,7 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
   // 🚀 Auto-redirect when wallet is connected
   useEffect(() => {
     if (currentAccount) {
-      // Wallet bağlandı, logout flag'ini temizle
+      // Wallet connected, clear logout flag
       localStorage.removeItem('wallet_logged_out');
       setTimeout(() => {
         navigate('/app');
@@ -124,16 +124,16 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
     }
   }, [currentAccount, navigate]);
 
-  // 🔁 Google'dan dönüşte URL'deki id_token'ı yakala
+  // 🔁 Capture id_token from URL on return from Google
   useEffect(() => {
 
-    // Google OAuth id_token'ı URL fragment (#) içinde döndürür, query string (?) içinde değil
-    // Örnek: http://localhost:5173/#id_token=xxx&authuser=0
-    const hash = window.location.hash.substring(1); // # işaretini kaldır
+    // Google OAuth returns id_token in URL fragment (#), not in query string (?)
+    // Example: http://localhost:5173/#id_token=xxx&authuser=0
+    const hash = window.location.hash.substring(1); // Remove # character
     const hashParams = new URLSearchParams(hash);
     let idToken = hashParams.get('id_token');
     
-    // Fallback: query string kontrolü
+    // Fallback: query string check
     if (!idToken) {
       const url = new URL(window.location.href);
       idToken = url.searchParams.get('id_token');
@@ -142,15 +142,15 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
     
     if (!idToken) return;
 
-    // URL'i temizle (hash ve query parametrelerini kaldır)
+    // Clear URL (remove hash and query parameters)
     window.history.replaceState({}, '', window.location.pathname);
 
     let decoded: JwtPayload;
     try {
       decoded = jwtDecode<JwtPayload>(idToken);
     } catch (e) {
-      console.error('JWT decode hatası:', e);
-      setZkStatus('JWT çözümlenemedi.');
+      console.error('JWT decode error:', e);
+      setZkStatus('JWT could not be decoded.');
       return;
     }
 
@@ -163,7 +163,7 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
       picture: decoded.picture,
     });
     
-    // zkLogin bilgilerini sessionStorage'a kaydet (DocumentsPage'de kullanılacak)
+    // Save zkLogin info to sessionStorage (to be used in DocumentsPage)
     sessionStorage.setItem('zklogin_address', address);
     sessionStorage.setItem('zklogin_user_info', JSON.stringify({
       email: decoded.email,
@@ -171,10 +171,10 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
       picture: decoded.picture,
     }));
     
-    // Logout flag'ini temizle
+    // Clear logout flag
     localStorage.removeItem('wallet_logged_out');
     
-    setZkStatus('zkLogin oturumu aktif. Bu adresle Sui üzerinde işlem yapabilirsin.');
+    setZkStatus('zkLogin session active. You can transact on Sui with this address.');
     
     // 💾 Save to localStorage
     localStorage.setItem('zkLoginAddress', address);
@@ -190,11 +190,11 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
     }, 2000);
   }, [navigate]);
 
-  // 🔐 zkLogin butonu
+  // 🔐 zkLogin button
   const handleZkLoginClick = async () => {
     if (!GOOGLE_CLIENT_ID) {
       alert(
-        'VITE_GOOGLE_CLIENT_ID tanımlı değil. Lütfen .env dosyasını kontrol et.',
+        'VITE_GOOGLE_CLIENT_ID is not defined. Please check .env file.',
       );
       return;
     }
@@ -230,8 +230,8 @@ function LoginPage({ theme, setTheme }: LoginPageProps) {
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
       window.location.href = authUrl;
     } catch (err) {
-      console.error('zkLogin başlatılırken hata:', err);
-      alert('zkLogin başlatılırken bir hata oluştu. Konsolu kontrol et.');
+      console.error('Error starting zkLogin:', err);
+      alert('An error occurred while starting zkLogin. Check the console.');
       setZkLoading(false);
     }
   };

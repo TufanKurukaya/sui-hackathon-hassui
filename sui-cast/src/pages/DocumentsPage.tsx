@@ -70,11 +70,11 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   
   const isDark = theme === 'dark';
 
-  // Sui Hooks - Wallet bağlantısı
+  // Sui Hooks - Wallet connection
   const account = useCurrentAccount();
   const walletAddress = account?.address;
   
-  // zkLogin adresi sessionStorage'dan al
+  // Get zkLogin address from sessionStorage
   const [zkLoginAddress, setZkLoginAddress] = useState<string | null>(null);
   const [zkLoginUserInfo, setZkLoginUserInfo] = useState<{
     email?: string;
@@ -82,10 +82,10 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     picture?: string;
   } | null>(null);
   
-  // Aktif adres: önce wallet, sonra zkLogin
+  // Active address: wallet first, then zkLogin
   const address = walletAddress || zkLoginAddress;
   
-  // zkLogin bilgilerini yükle
+  // Load zkLogin info
   useEffect(() => {
     const storedAddress = sessionStorage.getItem('zklogin_address');
     const storedUserInfo = sessionStorage.getItem('zklogin_user_info');
@@ -97,7 +97,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       try {
         setZkLoginUserInfo(JSON.parse(storedUserInfo));
       } catch (e) {
-        console.error('zkLogin user info parse hatası:', e);
+        console.error('zkLogin user info parse error:', e);
       }
     }
   }, []);
@@ -112,31 +112,29 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   
   // ==================== SURFLUX REAL-TIME STREAM ====================
   
-  // Yeni doküman yüklendiğinde çağrılır
+  // Called when a new document is uploaded
   const handleDocumentUploaded = useCallback((event: DocumentUploadedEvent) => {
-    console.log('[Surflux] Real-time: New document uploaded!', event.title);
     
-    // Notification göster
-    setNewDocNotification(`📄 Yeni doküman: "${event.title}"`);
+    // Show notification
+    setNewDocNotification(`📄 New document: "${event.title}"`);
     
-    // 5 saniye sonra notification'ı kapat
+    // Close notification after 5 seconds
     setTimeout(() => setNewDocNotification(null), 5000);
     
-    // Doküman listesini yenile
+    // Refresh document list
     refetchDocuments();
     
-    // Notification count artır
+    // Increase notification count
     setNotificationCount(prev => prev + 1);
   }, [refetchDocuments]);
 
-  // Doküman oy aldığında çağrılır
+  // Called when a document is voted
   const handleDocumentVoted = useCallback((event: DocumentVotedEvent) => {
-    console.log('[Surflux] Real-time: Document voted!', event.document_id, 'votes:', event.new_vote_count);
     
-    // Doküman listesini yenile (yeni vote count için)
+    // Refresh document list (for new vote count)
     refetchDocuments();
     
-    // Notification count artır
+    // Increase notification count
     setNotificationCount(prev => prev + 1);
   }, [refetchDocuments]);
 
@@ -151,7 +149,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     enabled: realtimeEnabled && isSurfluxConfigured(),
   });
 
-  // İlk yüklemede verileri çek
+  // Fetch data on initial load
   useEffect(() => {
     if (address) {
       refetchProfile();
@@ -163,43 +161,43 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
   const navigate = useNavigate();
   const { mutate: disconnectWallet } = useDisconnectWallet();
 
-  // Çıkış yap
+  // Logout
   const handleLogout = () => {
-    // Wallet bağlıysa disconnect yap
+    // Disconnect if wallet is connected
     if (walletAddress) {
       disconnectWallet();
     }
-    // Logout flag'ini ayarla (sayfa yenilendiğinde autoConnect çalışmasın)
+    // Set logout flag (prevent autoConnect on page refresh)
     localStorage.setItem('wallet_logged_out', 'true');
-    // zkLogin verilerini temizle
+    // Clear zkLogin data
     sessionStorage.removeItem('zklogin_address');
     sessionStorage.removeItem('zklogin_user_info');
     sessionStorage.removeItem('zklogin_ephemeral_data');
     sessionStorage.removeItem('sui_jwt_token');
-    // State'leri temizle
+    // Clear states
     setZkLoginAddress(null);
     setZkLoginUserInfo(null);
-    // Ana sayfaya yönlendir
+    // Redirect to home page
     navigate('/');
   };
 
-  // Profil oluştur
+  // Create profile
   const handleCreateProfile = async () => {
     try {
       await createProfile();
       setTimeout(() => refetchProfile(), 2000);
     } catch (error) {
-      console.error('Profil oluşturma hatası:', error);
+      console.error('Profile creation error:', error);
     }
   };
 
-  // Walrus'a dosya yükle
+  // Upload file to Walrus
   const uploadToWalrus = async (file: File): Promise<string> => {
     setWalrusUploading(true);
     setWalrusUploadStatus('uploading');
     setWalrusError(null);
 
-    // Birden fazla proxy endpoint dene (farklı Walrus publisher'lar)
+    // Try multiple proxy endpoints (different Walrus publishers)
     const PROXY_ENDPOINTS = [
       '/walrus-api',    // https://publisher.walrus-testnet.walrus.space
       '/walrus-api-2',  // https://wal-publisher-testnet.staketab.org
@@ -224,70 +222,70 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.warn(`${proxyEndpoint} başarısız: ${response.status} - ${errorText}`);
+          console.warn(`${proxyEndpoint} failed: ${response.status} - ${errorText}`);
           lastError = new Error(`HTTP ${response.status}: ${errorText}`);
           continue;
         }
 
         const result = await response.json();
         
-        // Response yapısı: { newlyCreated: { blobObject: { blobId: "..." } } } 
-        // veya { alreadyCertified: { blobId: "..." } }
+        // Response structure: { newlyCreated: { blobObject: { blobId: "..." } } } 
+        // or { alreadyCertified: { blobId: "..." } }
         const blobId = result.newlyCreated?.blobObject?.blobId || 
                        result.alreadyCertified?.blobId ||
                        result.blobId;
         
         
         if (!blobId) {
-          console.warn('Blob ID bulunamadı:', result);
-          lastError = new Error('Blob ID alınamadı');
+          console.warn('Blob ID not found:', result);
+          lastError = new Error('Blob ID could not be retrieved');
           continue;
         }
 
-        // Başarılı! State'leri güncelle
+        // Success! Update states
         setWalrusUploading(false);
         setWalrusUploadStatus('success');
         setUploadForm(prev => ({ ...prev, walrusBlobId: blobId }));
         return blobId;
       } catch (err) {
-        console.warn(`${proxyEndpoint} hatası:`, err);
+        console.warn(`${proxyEndpoint} error:`, err);
         lastError = err instanceof Error ? err : new Error(String(err));
         continue;
       }
     }
 
-    // Tüm endpoint'ler başarısız olduysa
-    console.error('Walrus upload hatası - tüm publisher\'lar başarısız:', lastError);
+    // If all endpoints failed
+    console.error('Walrus upload error - all publishers failed:', lastError);
     setWalrusUploading(false);
     setWalrusUploadStatus('error');
-    setWalrusError(lastError?.message || 'Tüm Walrus publisher\'lar başarısız oldu');
-    throw lastError || new Error('Walrus upload başarısız');
+    setWalrusError(lastError?.message || 'All Walrus publishers failed');
+    throw lastError || new Error('Walrus upload failed');
   };
 
-  // Dosya seçildiğinde
+  // When file is selected
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setSelectedFile(file);
     
-    // Otomatik olarak Walrus'a yükle
+    // Automatically upload to Walrus
     try {
       await uploadToWalrus(file);
     } catch {
-      // Hata zaten state'te
+      // Error is already in state
     }
   };
 
-  // Döküman yükle (blockchain'e kaydet)
+  // Upload document (save to blockchain)
   const handleUploadDocument = async () => {
     if (!profile) {
-      alert('Önce profil oluşturmalısınız!');
+      alert('You must create a profile first!');
       return;
     }
 
     if (!uploadForm.walrusBlobId) {
-      alert('Lütfen önce bir dosya yükleyin!');
+      alert('Please upload a file first!');
       return;
     }
 
@@ -299,7 +297,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         uploadForm.walrusBlobId,
         uploadForm.category
       );
-      // Form'u sıfırla
+      // Reset form
       setUploadForm({ title: '', description: '', walrusBlobId: '', category: '' });
       setSelectedFile(null);
       setWalrusUploadStatus('idle');
@@ -309,12 +307,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         refetchDocuments();
       }, 2000);
     } catch (error) {
-      console.error('Döküman yükleme hatası:', error);
+      console.error('Document upload error:', error);
     }
   };
 
-  // Blockchain'den gelen dökümanları Document tipine dönüştür
-  // Eğer blockchain'den veri yoksa mock data kullan
+  // Convert documents from blockchain to Document type
+  // Use mock data if no data from blockchain
   const mockDocuments: Document[] = [
     { 
       id: '1', 
@@ -322,7 +320,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       author: '0x12...ab', 
       likes: 124, 
       blobId: 'blob123', 
-      description: 'Bu proje, iki yığın kullanarak sayıları sıralama algoritmasını içerir.' 
+      description: 'This project involves a sorting algorithm using two stacks.' 
     },
     { 
       id: '2', 
@@ -330,7 +328,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       author: '0x34...cd', 
       likes: 98, 
       blobId: 'blob456', 
-      description: 'Klasik filozoflar yemek problemi üzerine thread ve mutex kullanımını içeren bir proje.' 
+      description: 'A project involving thread and mutex usage on the classic dining philosophers problem.' 
     },
     { 
       id: '3', 
@@ -338,7 +336,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       author: '0x56...ef', 
       likes: 156, 
       blobId: 'blob789', 
-      description: 'Bash benzeri bir shell uygulaması. Pipe, redirection, environment variables içerir.' 
+      description: 'A bash-like shell application. Includes pipes, redirection, environment variables.' 
     },
     { 
       id: '4', 
@@ -346,12 +344,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       author: '0x78...gh', 
       likes: 87, 
       blobId: 'blob012', 
-      description: 'Raycasting tekniği kullanılarak yapılmış 3D labirent oyunu.' 
+      description: 'A 3D maze game made using raycasting technique.' 
     },
     
   ];
 
-  // Blockchain dökümanlarını UI formatına dönüştür
+  // Convert blockchain documents to UI format
   const documents: Document[] = blockchainDocs.length > 0 
     ? blockchainDocs.map(doc => ({
         id: doc.id,
@@ -359,12 +357,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         author: `${doc.uploader.slice(0, 6)}...${doc.uploader.slice(-4)}`,
         likes: doc.votes,
         blobId: doc.walrusBlobId,
-        description: doc.description || 'Açıklama yok',
+        description: doc.description || 'No description',
         category: doc.category,
       }))
     : mockDocuments;
 
-  // Leaderboard: En fazla beğeni alan dokümanlar (top 5)
+  // Leaderboard: Most liked documents (top 5)
   const leaderboard: LeaderboardUser[] = [...documents]
     .sort((a, b) => b.likes - a.likes)
     .slice(0, 5)
@@ -386,55 +384,55 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         return <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{rank}</span>;
     }
   };
-  // handle report fonksiyonu
+  // handle report function
   const handleReport = (docId: string) => {
-    setReportTargetId(docId);   // hangi döküman raporlanıyor?
-    setShowReportModal(true);   // popup aç
+    setReportTargetId(docId);   // which document is being reported?
+    setShowReportModal(true);   // open popup
   };
   const handleSubmitReport = () => {
     if (!reportBlobId.trim()) {
-      alert("Lütfen bir Blob ID girin.");
+      alert("Please enter a Blob ID.");
       return;
     }
   
-    console.log("Rapor gönderildi:", {
+    console.log("Report sent:", {
       documentId: reportTargetId,
       blobId: reportBlobId,
     });
   
-    alert("Rapor başarıyla gönderildi!");
+    alert("Report successfully sent!");
   
     setReportBlobId("");
     setShowReportModal(false);
   };
   
 
-  // Blockchain'e oy gönder
+  // Send vote to blockchain
   const handleLike = async (docId: string) => {
     if (!address) {
-      alert('Lütfen cüzdanınızı bağlayın!');
+      alert('Please connect your wallet!');
       return;
     }
 
-    // Mock document ise gerçek oy gönderme
+    // Do not send real vote if mock document
     if (docId.length < 10) {
       return;
     }
 
     try {
       await vote(docId);
-      // Biraz bekle ve yeniden çek
+      // Wait a bit and refetch
       setTimeout(() => {
         refetchDocuments();
       }, 3000);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('E_ALREADY_VOTED') || errorMessage.includes('0')) {
-        alert('Bu dökümana zaten oy verdiniz!');
+        alert('You have already voted for this document!');
       } else if (errorMessage.includes('E_CANNOT_VOTE_OWN_DOCUMENT') || errorMessage.includes('1')) {
-        alert('Kendi dökümanınıza oy veremezsiniz!');
+        alert('You cannot vote for your own document!');
       } else {
-        console.error('Oy verme hatası:', error);
+        console.error('Voting error:', error);
       }
     }
   };
@@ -443,12 +441,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
     // Walrus Aggregator URL
     const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
     
-    // Direkt URL'i aç - tarayıcı dosyayı indirecek
-    // Kullanıcı indirilen dosyanın uzantısını .pdf olarak değiştirmeli
+    // Open URL directly - browser will download the file
+    // User should change the extension of the downloaded file to .pdf
     window.open(walrusUrl, '_blank');
   };
   
-  // Dosyayı fetch edip doğru isimle indirme fonksiyonu
+  // Function to fetch file and download with correct name
   const downloadWalrusFile = async (blobId: string, filename: string) => {
     try {
       const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
@@ -458,13 +456,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       
       const blob = await response.blob();
       
-      // Dosya adına uzantı ekle (yoksa)
+      // Add extension to filename (if missing)
       let finalFilename = filename;
       if (!filename.includes('.')) {
-        finalFilename = `${filename}.pdf`; // Varsayılan olarak PDF
+        finalFilename = `${filename}.pdf`; // Default to PDF
       }
       
-      // Dosyayı indir
+      // Download file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -476,11 +474,11 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
       
     } catch (error) {
       console.error('Download error:', error);
-      alert('Dosya indirilemedi. Lütfen tekrar deneyin.');
+      alert('File could not be downloaded. Please try again.');
     }
   };
 
-  // Arama filtreleme
+  // Search filtering
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     doc.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -502,7 +500,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         }
       >
         <h2 className={`text-lg font-bold ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
-          🏆 Top Dokümanlar
+          🏆 Top Documents
         </h2>
         <div className="space-y-2">
           {leaderboard.map((user, index) => (
@@ -522,7 +520,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     {user.address}
                   </p>
                   <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-[#A59D84]/70'}`}>
-                    ❤️ {user.points} beğeni
+                    ❤️ {user.points} likes
                   </p>
                 </div>
               </div>
@@ -535,14 +533,14 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
           isDark ? 'border-[#5C3E94]/30 bg-[#412B6B]/30' : 'border-[#A59D84]/30 bg-[#ECEBDE]/50'
         }`}>
           <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
-            Toplam Döküman
+            Total Documents
           </p>
           <p className={`text-2xl font-bold ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
             {stats?.totalDocuments || documents.length}
           </p>
         </div>
 
-        {/* zkLogin Kullanıcı Bilgisi */}
+        {/* zkLogin User Info */}
         {zkLoginUserInfo && (
           <div className={`mt-3 p-3 rounded-lg border ${
             isDark ? 'border-[#5C3E94]/30 bg-[#412B6B]/30' : 'border-[#A59D84]/30 bg-[#ECEBDE]/50'
@@ -567,7 +565,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
           </div>
         )}
 
-        {/* Profil Durumu */}
+        {/* Profile Status */}
         {address && (
           <div className={`mt-3 p-3 rounded-lg border ${
             isDark ? 'border-[#5C3E94]/30 bg-[#412B6B]/30' : 'border-[#A59D84]/30 bg-[#ECEBDE]/50'
@@ -575,13 +573,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
             {profileLoading ? (
               <div className="flex items-center gap-2">
                 <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`} />
-                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>Yükleniyor...</span>
+                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>Loading...</span>
               </div>
             ) : profile ? (
               <div>
-                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>Profilim</p>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>My Profile</p>
                 <p className={`text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  {profile.totalUploads} yükleme
+                  {profile.totalUploads} uploads
                 </p>
               </div>
             ) : (
@@ -596,7 +594,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     : 'bg-[#A59D84] text-white hover:bg-[#A59D84]/80'
                 } disabled:opacity-50`}
               >
-                {isCreatingProfile ? 'Oluşturuluyor...' : zkLoginAddress && !walletAddress ? 'Cüzdan Bağla (zkLogin profil için)' : 'Profil Oluştur'}
+                {isCreatingProfile ? 'Creating...' : zkLoginAddress && !walletAddress ? 'Connect Wallet (for zkLogin profile)' : 'Create Profile'}
               </motion.button>
             )}
           </div>
@@ -652,7 +650,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     setNotificationCount(0);
                   }
                 }}
-                title={isStreamConnected ? 'Bildirimler (Bağlı)' : 'Bildirimler (Bağlanıyor...)'}
+                title={isStreamConnected ? 'Notifications (Connected)' : 'Notifications (Connecting...)'}
               >
                 {notificationCount > 0 ? (
                   <BellRing className={`w-6 h-6 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'} animate-pulse`} />
@@ -697,13 +695,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                       <div className="flex items-center justify-between">
                         <h3 className={`font-semibold ${
                           isDark ? 'text-slate-200' : 'text-slate-800'
-                        }`}>Bildirimler</h3>
+                        }`}>Notifications</h3>
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           isStreamConnected 
                             ? 'bg-green-500/20 text-green-500' 
                             : 'bg-yellow-500/20 text-yellow-500'
                         }`}>
-                          {isStreamConnected ? '● Canlı' : '○ Bağlanıyor'}
+                          {isStreamConnected ? '● Live' : '○ Connecting'}
                         </span>
                       </div>
                     </div>
@@ -713,8 +711,8 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                         isDark ? 'text-slate-400' : 'text-slate-500'
                       }`}>
                         <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Henüz bildirim yok</p>
-                        <p className="text-xs mt-1">Yeni dokümanlar burada görünecek</p>
+                        <p className="text-sm">No notifications yet</p>
+                        <p className="text-xs mt-1">New documents will appear here</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-opacity-20">
@@ -739,7 +737,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                                   <p className={`text-xs ${
                                     isDark ? 'text-slate-400' : 'text-slate-500'
                                   }`}>
-                                    Yeni doküman yüklendi
+                                    New document uploaded
                                   </p>
                                 </div>
                               </div>
@@ -752,7 +750,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                                   <p className={`text-sm ${
                                     isDark ? 'text-slate-200' : 'text-slate-800'
                                   }`}>
-                                    Yeni oy: {(event.data as DocumentVotedEvent).new_vote_count} beğeni
+                                    New vote: {(event.data as DocumentVotedEvent).new_vote_count} likes
                                   </p>
                                   <p className={`text-xs truncate ${
                                     isDark ? 'text-slate-400' : 'text-slate-500'
@@ -780,7 +778,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               if (!profile) {
-                alert('Önce sol panelden profil oluşturmalısınız!');
+                alert('You must create a profile from the left panel first!');
                 return;
               }
               setShowUploadModal(true);
@@ -874,7 +872,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   ? 'hover:bg-[#F25912]/20' 
                   : 'hover:bg-[#A59D84]/20'
               }`}
-              title="Çıkış Yap"
+              title="Logout"
             >
               <LogOut className={`w-5 h-5 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
             </motion.button>
@@ -968,7 +966,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
                 {/* Author */}
                 <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
-                  Yazar: {doc.author}
+                  Author: {doc.author}
                 </p>
 
                 <div className={`h-px mb-4 ${isDark ? 'bg-[#5C3E94]/30' : 'bg-[#C1BAA1]/30'}`} />
@@ -989,11 +987,11 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   } disabled:opacity-50`}
                 >
                   <Heart className="w-4 h-4" />
-                  {isVoting ? '...' : `BEĞEN (${doc.likes})`}
+                  {isVoting ? '...' : `LIKE (${doc.likes})`}
                 </motion.button>
 
                 <p className={`text-[10px] mt-2 text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
-                  Tıklayarak detayları görüntüleyin
+                  Click to view details
                 </p>
               </motion.div>
             ))}
@@ -1060,7 +1058,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                         {selectedDoc.title}
                       </h2>
                       <p className={`text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
-                        Yazar: {selectedDoc.author}
+                        Author: {selectedDoc.author}
                       </p>
                     </div>
                   </div>
@@ -1071,7 +1069,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   {/* Açıklama */}
                   <div>
                     <h3 className={`text-xl font-semibold mb-3 ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                      Proje Açıklaması
+                      Project Description
                     </h3>
                     <p className={`text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {selectedDoc.description}
@@ -1115,7 +1113,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                         }`}
                       >
                         <FileText className="w-6 h-6" />
-                        {!selectedDoc.blobId.startsWith('blob') ? 'İndir (.pdf)' : 'İndirilemez'}
+                        {!selectedDoc.blobId.startsWith('blob') ? 'Download (.pdf)' : 'Not Downloadable'}
                       </motion.button>
                     {/* Like Button */}
                     <motion.button
@@ -1160,8 +1158,8 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   {/* Info Text */}
                   <p className={`text-xs text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
                     {selectedDoc.blobId.startsWith('blob') 
-                      ? 'Bu örnek veridir. Gerçek dosya görmek için yeni bir döküman yükleyin.'
-                      : 'Dosyayı görüntülemek veya indirmek için butonları kullanın. Beğeni butonu Sui blockchain\'e sinyal gönderir.'
+                      ? 'This is sample data. Upload a new document to see a real file.'
+                      : 'Use buttons to view or download the file. Like button sends a signal to Sui blockchain.'
                     }
                   </p>
                 </div>
@@ -1208,7 +1206,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setShowUploadModal(false)}
-                  className={`absolute top-4 right-4 z-10 p-2 rounded-full ${
+                  className={`absolute top-4 right-4 z-50 p-2 rounded-full ${
                     isDark 
                       ? 'bg-[#5C3E94] hover:bg-[#F25912]' 
                       : 'bg-[#A59D84] hover:bg-[#C1BAA1]'
@@ -1218,7 +1216,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                 </motion.button>
 
                 {/* Modal Header */}
-                <div className={`p-4 sm:p-6 border-b sticky top-0 z-10 ${isDark ? 'border-[#5C3E94]/30 bg-[#412B6B]' : 'border-[#C1BAA1]/30 bg-white'}`}>
+                <div className={`p-4 sm:p-6 border-b rounded-t-2xl ${isDark ? 'border-[#5C3E94]/30 bg-[#412B6B]' : 'border-[#C1BAA1]/30 bg-white'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
                       isDark ? 'bg-[#5C3E94]/30' : 'bg-[#A59D84]/20'
@@ -1226,7 +1224,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                       <Upload className={`w-5 h-5 sm:w-6 sm:h-6 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
                     </div>
                     <h2 className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                      Yeni Döküman Yükle
+                      Upload New Document
                     </h2>
                   </div>
                 </div>
@@ -1236,7 +1234,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                   {/* Dosya Yükleme Alanı */}
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Dosya Seç (Walrus'a yüklenecek)
+                      Select File (will be uploaded to Walrus)
                     </label>
                     <div
                       className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all ${
@@ -1261,37 +1259,37 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                         <div className="flex flex-col items-center gap-2">
                           <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
                           <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                            Walrus'a yükleniyor...
+                            Uploading to Walrus...
                           </p>
                         </div>
                       ) : walrusUploadStatus === 'success' ? (
                         <div className="flex flex-col items-center gap-2">
                           <CheckCircle className="w-8 h-8 text-green-500" />
                           <p className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                            {selectedFile?.name} yüklendi!
+                            {selectedFile?.name} uploaded!
                           </p>
                           <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            Başka bir dosya seçmek için tıklayın
+                            Click to select another file
                           </p>
                         </div>
                       ) : walrusUploadStatus === 'error' ? (
                         <div className="flex flex-col items-center gap-2">
                           <AlertCircle className="w-8 h-8 text-red-500" />
                           <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
-                            Yükleme başarısız!
+                            Upload failed!
                           </p>
                           <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {walrusError || 'Tekrar deneyin'}
+                            {walrusError || 'Try again'}
                           </p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2">
                           <CloudUpload className={`w-8 h-8 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
                           <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                            Dosya seçmek için tıklayın veya sürükleyin
+                            Click or drag to select file
                           </p>
                           <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                            PDF, DOC, DOCX, TXT, MD desteklenir
+                            PDF, DOC, DOCX, TXT, MD supported
                           </p>
                         </div>
                       )}
@@ -1312,13 +1310,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Başlık
+                      Title
                     </label>
                     <input
                       type="text"
                       value={uploadForm.title}
                       onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                      placeholder="Döküman başlığı"
+                      placeholder="Document title"
                       className={`w-full p-3 rounded-lg border outline-none ${
                         isDark 
                           ? 'bg-[#2d1f45] border-[#5C3E94]/40 text-slate-100 placeholder-slate-500 focus:border-[#F25912]' 
@@ -1329,12 +1327,12 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Açıklama
+                      Description
                     </label>
                     <textarea
                       value={uploadForm.description}
                       onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
-                      placeholder="Döküman açıklaması"
+                      placeholder="Document description"
                       rows={2}
                       className={`w-full p-3 rounded-lg border outline-none resize-none ${
                         isDark 
@@ -1346,7 +1344,7 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
 
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Kategori
+                      Category
                     </label>
                     <select
                       value={uploadForm.category}
@@ -1357,13 +1355,13 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                           : 'bg-white border-[#C1BAA1]/40 text-slate-900 focus:border-[#A59D84]'
                       }`}
                     >
-                      <option value="">Kategori seçin</option>
+                      <option value="">Select category</option>
                       <option value="42 Project">42 Project</option>
-                      <option value="Programlama">Programlama</option>
-                      <option value="Matematik">Matematik</option>
-                      <option value="Fizik">Fizik</option>
+                      <option value="Programming">Programming</option>
+                      <option value="Mathematics">Mathematics</option>
+                      <option value="Physics">Physics</option>
                       <option value="Blockchain">Blockchain</option>
-                      <option value="Diğer">Diğer</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
 
@@ -1382,15 +1380,15 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                     {isUploading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Blockchain'e kaydediliyor...
+                        Saving to blockchain...
                       </span>
                     ) : (
-                      'Dökümanı Kaydet'
+                      'Save Document'
                     )}
                   </motion.button>
 
                   <p className={`text-xs text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
-                    Dosya Walrus'a, bilgiler Sui blockchain'e kaydedilir.
+                    File is saved to Walrus, info to Sui blockchain.
                   </p>
                 </div>
               </div>
@@ -1416,18 +1414,34 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
         exit={{ scale: 0.8, opacity: 0 }}
       >
         <div
-          className={`w-full max-w-md rounded-2xl p-6 border-2 shadow-xl ${
+          className={`relative w-full max-w-md rounded-2xl p-6 border-2 shadow-xl ${
             isDark ? 'bg-[#412B6B] border-[#5C3E94]' : 'bg-white border-[#A59D84]'
           }`}
         >
-          <h2 className="text-2xl font-bold mb-4 text-center">Report Document</h2>
+          {/* Close Button */}
+          <button
+            onClick={() => setShowReportModal(false)}
+            className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
+              isDark 
+                ? 'bg-[#5C3E94] hover:bg-[#F25912] text-white' 
+                : 'bg-[#A59D84] hover:bg-[#C1BAA1] text-white'
+            }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
 
-          <label className="font-semibold mb-1 block">Blob ID:</label>
+          <h2 className={`text-2xl font-bold mb-4 text-center ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Report Document
+          </h2>
+
+          <label className={`font-semibold mb-1 block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            Blob ID:
+          </label>
           <input
             type="text"
             value={reportBlobId}
             onChange={(e) => setReportBlobId(e.target.value)}
-            placeholder="örn: 0xabc123..."
+            placeholder="e.g.: 0xabc123..."
             className={`w-full p-3 rounded-lg border-2 mb-6 ${
               isDark
                 ? "bg-[#2d1f45] border-[#5C3E94] text-white"
@@ -1442,14 +1456,14 @@ function DocumentsPage({ theme, setTheme }: DocumentsPageProps) {
                 isDark ? "border-[#5C3E94] text-white" : "border-[#A59D84] text-black"
               }`}
             >
-              İptal
+              Cancel
             </button>
 
             <button
               onClick={handleSubmitReport}
               className="px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-500"
             >
-              Gönder
+              Send
             </button>
           </div>
 

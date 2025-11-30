@@ -4,13 +4,13 @@ import { Transaction } from "@mysten/sui/transactions";
 export const PACKAGE_ID = import.meta.env.VITE_PACKAGE_ID || "0xbfaff760182ed4b267cbf6db6ceaa28012b2adb48a2e2db0c51023efa2f1fda7";
 export const DOCUMENT_LIBRARY_ID = import.meta.env.VITE_DOCUMENT_LIBRARY_ID || "0xd4a75ba83ee878c99fcdbf493e4211316dc6d62492dd23ee7416135fabb1e793";
 export const ACHIEVEMENT_MINTER_ID = import.meta.env.VITE_ACHIEVEMENT_MINTER_ID || "0xf9799f420495793f17e33e3efefef4bae0d511f482e5b5eec8795322048f9496";
-export const CLOCK_ID = "0x6"; // Sui sistem clock objesi
+export const CLOCK_ID = "0x6"; // Sui system clock object
 
 // ==================== DOCUMENT SYSTEM PTBs ====================
 
 /**
- * Yeni öğrenci profili oluşturur
- * Her kullanıcı sistemi kullanmadan önce bunu çağırmalı
+ * Creates a new student profile
+ * Every user must call this before using the system
  */
 export function createStudentProfile(): Transaction {
   const tx = new Transaction();
@@ -23,12 +23,12 @@ export function createStudentProfile(): Transaction {
 }
 
 /**
- * Döküman yükler
- * @param profileId - Kullanıcının StudentProfile object ID'si
- * @param title - Döküman başlığı
- * @param description - Döküman açıklaması
- * @param walrusBlobId - Walrus'a yüklenen dökümanın blob ID'si
- * @param category - Döküman kategorisi (örn: "Matematik", "Fizik")
+ * Uploads a document
+ * @param profileId - User's StudentProfile object ID
+ * @param title - Document title
+ * @param description - Document description
+ * @param walrusBlobId - Blob ID of the document uploaded to Walrus
+ * @param category - Document category (e.g., "Mathematics", "Physics")
  */
 export function uploadDocument(
   profileId: string,
@@ -56,8 +56,8 @@ export function uploadDocument(
 }
 
 /**
- * Dökümana oy verir
- * @param documentId - Oy verilecek dökümanın ID'si
+ * Votes for a document
+ * @param documentId - ID of the document to vote for
  */
 export function voteDocument(documentId: string): Transaction {
   const tx = new Transaction();
@@ -75,9 +75,9 @@ export function voteDocument(documentId: string): Transaction {
 }
 
 /**
- * Profile'a achievement NFT ekler
- * @param profileId - Kullanıcının StudentProfile object ID'si
- * @param achievementId - Eklenecek achievement NFT'nin ID'si
+ * Adds achievement NFT to profile
+ * @param profileId - User's StudentProfile object ID
+ * @param achievementId - ID of the achievement NFT to add
  */
 export function addAchievementToProfile(
   profileId: string,
@@ -97,9 +97,9 @@ export function addAchievementToProfile(
 }
 
 /**
- * Aylık liderlik tablosunu günceller
- * @param month - Ay (timestamp_ms / 2592000000)
- * @param topStudents - En iyi öğrencilerin adresleri
+ * Updates monthly leaderboard
+ * @param month - Month (timestamp_ms / 2592000000)
+ * @param topStudents - Addresses of top students
  */
 export function updateMonthlyLeaderboard(
   month: number,
@@ -122,10 +122,10 @@ export function updateMonthlyLeaderboard(
 // ==================== ACHIEVEMENT NFT PTBs ====================
 
 /**
- * Aylık başarı NFT'si mint eder (Sadece admin)
- * @param recipient - NFT alıcısının adresi
- * @param rank - Sıralama (1, 2 veya 3)
- * @param month - Ay
+ * Mints monthly achievement NFT (Admin only)
+ * @param recipient - NFT recipient address
+ * @param rank - Rank (1, 2 or 3)
+ * @param month - Month
  */
 export function mintMonthlyAchievement(
   recipient: string,
@@ -148,10 +148,10 @@ export function mintMonthlyAchievement(
 }
 
 /**
- * En çok yükleyen için başarı NFT'si mint eder (Sadece admin)
- * @param recipient - NFT alıcısının adresi
- * @param uploadsCount - Yükleme sayısı
- * @param month - Ay
+ * Mints achievement NFT for top uploader (Admin only)
+ * @param recipient - NFT recipient address
+ * @param uploadsCount - Upload count
+ * @param month - Month
  */
 export function mintUploaderAchievement(
   recipient: string,
@@ -174,10 +174,10 @@ export function mintUploaderAchievement(
 }
 
 /**
- * Popüler döküman için başarı NFT'si mint eder (Sadece admin)
- * @param recipient - NFT alıcısının adresi
- * @param votesReceived - Alınan oy sayısı
- * @param month - Ay
+ * Mints achievement NFT for popular document (Admin only)
+ * @param recipient - NFT recipient address
+ * @param votesReceived - Number of votes received
+ * @param month - Month
  */
 export function mintPopularDocumentAchievement(
   recipient: string,

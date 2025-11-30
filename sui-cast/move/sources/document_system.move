@@ -19,11 +19,11 @@ module document_library::document_system {
         id: UID,
         title: String,
         description: String,
-        walrus_blob_id: String, // Walrus'ta saklanan döküman ID'si
+        walrus_blob_id: String, // Document ID stored in Walrus
         uploader: address,
         upload_timestamp: u64,
         votes: u64,
-        voters: vector<address>, // Double voting önleme
+        voters: vector<address>, // Prevent double voting
         category: String,
     }
 
@@ -122,14 +122,14 @@ module document_library::document_system {
 
         let document_id = object::id(&document);
         
-        // Library'e ekle
+        // Add to Library
         table::add(&mut library.documents, document_id, document);
         library.total_documents = library.total_documents + 1;
 
-        // Profile güncelle
+        // Update Profile
         profile.total_uploads = profile.total_uploads + 1;
         
-        // Aylık puan ekle (upload = 10 puan)
+        // Add monthly points (upload = 10 points)
         let current_month = get_current_month(clock);
         add_monthly_points(profile, current_month, 10);
 
@@ -155,13 +155,13 @@ module document_library::document_system {
         let document = table::borrow_mut(&mut library.documents, document_id);
         let voter = tx_context::sender(ctx);
         
-        // Kendi dökümanına oy veremez - TEST için devre dışı
+        // Cannot vote for own document - Disabled for TEST
         // assert!(document.uploader != voter, E_CANNOT_VOTE_OWN_DOCUMENT);
         
-        // Daha önce oy vermiş mi kontrol et
+        // Check if already voted
         assert!(!vector::contains(&document.voters, &voter), E_ALREADY_VOTED);
         
-        // Oy ekle
+        // Add vote
         document.votes = document.votes + 1;
         vector::push_back(&mut document.voters, voter);
         
@@ -196,7 +196,7 @@ module document_library::document_system {
             let student = *vector::borrow(&top_students, i);
             let entry = LeaderboardEntry {
                 student,
-                points: (vector::length(&top_students) - i) * 100, // Sıralama puanı
+                points: (vector::length(&top_students) - i) * 100, // Ranking points
             };
             vector::push_back(&mut leaderboard_entries, entry);
             i = i + 1;
@@ -216,8 +216,8 @@ module document_library::document_system {
     // === Helper Functions ===
 
     fun get_current_month(clock: &Clock): u64 {
-        // Basit month hesabı (gerçekte daha detaylı olmalı)
-        clock::timestamp_ms(clock) / (30 * 24 * 60 * 60 * 1000) // 30 günlük periyot
+        // Simple month calculation (should be more detailed in reality)
+        clock::timestamp_ms(clock) / (30 * 24 * 60 * 60 * 1000) // 30-day period
     }
 
     fun add_monthly_points(profile: &mut StudentProfile, month: u64, points: u64) {

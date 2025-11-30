@@ -26,7 +26,7 @@ const { networkConfig } = createNetworkConfig({
 
 const queryClient = new QueryClient();
 
-// Kullanıcı manuel logout yapmadıysa autoConnect aktif olsun
+// If user has not manually logged out, autoConnect should be active
 const shouldAutoConnect = localStorage.getItem('wallet_logged_out') !== 'true';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -36,9 +36,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <WalletProvider
           autoConnect={shouldAutoConnect}
           theme={[
-            // Varsayılan: light (html/body'de 'dark' class yoksa)
+            // Default: light (if 'dark' class is not present in html/body)
             { variables: lightTheme },
-            // Eğer html/body '.dark' class'ına sahipse: darkTheme
+            // If html/body has '.dark' class: darkTheme
             {
               selector: '.dark',
               variables: darkTheme,

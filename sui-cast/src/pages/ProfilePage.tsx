@@ -31,7 +31,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
   const navigate = useNavigate();
   const { address } = useParams<{ address?: string }>();
   
-  const [aboutMe, setAboutMe] = useState('42 öğrencisiyim. C, C++ ve sistem programlama konularında uzmanlaşıyorum. Blockchain ve Web3 teknolojilerine ilgi duyuyorum.');
+  const [aboutMe, setAboutMe] = useState('I am a 42 student. I specialize in C, C++ and system programming. I am interested in Blockchain and Web3 technologies.');
   const [isEditingAbout, setIsEditingAbout] = useState(false);
   const [tempAboutMe, setTempAboutMe] = useState(aboutMe);
   const [profileAddress, setProfileAddress] = useState<string | null>(null);
@@ -42,16 +42,16 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [copiedBlobId, setCopiedBlobId] = useState(false);
 
-  // Wallet ve blockchain hooks
+  // Wallet and blockchain hooks
   const account = useCurrentAccount();
   const { documents: blockchainDocs, loading: docsLoading, refetch: refetchDocuments } = useDocuments();
 
-  // İlk yüklemede dokümanları çek
+  // Fetch documents on initial load
   useEffect(() => {
     refetchDocuments();
   }, []);
 
-  // Kullanıcıya ait dokümanları filtrele
+  // Filter user's documents
   const currentUserAddress = account?.address || sessionStorage.getItem('zklogin_address');
   const viewingAddress = address || currentUserAddress;
   
@@ -60,16 +60,16 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
     .map(doc => ({
       id: doc.id,
       title: doc.title,
-      description: doc.description || 'Açıklama yok',
+      description: doc.description || 'No description',
       likes: doc.votes,
       blobId: doc.walrusBlobId,
       category: doc.category,
     }));
 
-  // Kullanıcının toplam puanı (aldığı toplam beğeni)
+  // User's total points (total likes received)
   const userPoints = userProjects.reduce((total, project) => total + project.likes, 0);
 
-  // Mock data - NFT'ler için
+  // Mock data - for NFTs
   const userRank: number = 1;
 
   const nfts: NFT[] = [
@@ -117,18 +117,18 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
     setIsEditingAbout(false);
   };
 
-  // Blob ID kopyalama
+  // Copy Blob ID
   const handleCopyBlobId = async (blobId: string) => {
     try {
       await navigator.clipboard.writeText(blobId);
       setCopiedBlobId(true);
       setTimeout(() => setCopiedBlobId(false), 2000);
     } catch (err) {
-      console.error('Kopyalama hatası:', err);
+      console.error('Copy error:', err);
     }
   };
 
-  // Dosyayı indirme
+  // Download file
   const downloadWalrusFile = async (blobId: string, filename: string) => {
     try {
       const walrusUrl = `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${blobId}`;
@@ -151,7 +151,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
-      alert('Dosya indirilemedi. Lütfen tekrar deneyin.');
+      alert('File could not be downloaded. Please try again.');
     }
   };
 
@@ -217,7 +217,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
             >
               {getRankIcon()}
               <span className={`text-sm mt-2 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                Sıralama
+                Rank
               </span>
             </div>
             {/* Points Card */}
@@ -227,7 +227,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
               }`}
             >
               <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
-                Toplam Puan
+                Total Points
               </p>
               <p className={`text-3xl font-bold ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
                 {userPoints}
@@ -342,7 +342,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
               }`}
             >
               <ArrowLeft className="w-8 h-8" />
-              <span className="text-sm">Dökümanlar</span>
+              <span className="text-sm">Documents</span>
             </motion.button>
           </motion.div>
         </div>
@@ -380,7 +380,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className={`text-4xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                    {userInfo?.name || 'Hakkımda'}
+                    {userInfo?.name || 'About Me'}
                   </h2>
                   {profileAddress && (
                     <p className={`text-sm mt-1 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -400,7 +400,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                     }`}
                   >
                     <Edit2 className="w-4 h-4" />
-                    <span>Düzenle</span>
+                    <span>Edit</span>
                   </motion.button>
                 )}
               </div>
@@ -416,7 +416,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                     } focus:outline-none focus:ring-2 ${
                       isDark ? 'focus:ring-[#F25912]/30' : 'focus:ring-[#A59D84]/30'
                     }`}
-                    placeholder="Kendiniz hakkında bilgi yazın..."
+                    placeholder="Write something about yourself..."
                   />
                   <div className="flex gap-3">
                     <motion.button
@@ -430,7 +430,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                       }`}
                     >
                       <Check className="w-4 h-4" />
-                      <span>Kaydet</span>
+                      <span>Save</span>
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
@@ -443,7 +443,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                       }`}
                     >
                       <X className="w-4 h-4" />
-                      <span>İptal</span>
+                      <span>Cancel</span>
                     </motion.button>
                   </div>
                 </div>
@@ -466,7 +466,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
           }`}
         >
           <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
-            Kazandığım NFT&apos;ler Vitrin Sayfası
+            My Earned NFTs Showcase
           </h3>
           <div className="grid grid-cols-3 gap-4">
             {nfts.map((nft, index) => (
@@ -492,7 +492,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
           transition={{ delay: 0.3 }}
         >
           <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`}>
-            Projelerim ({userProjects.length})
+            My Projects ({userProjects.length})
           </h3>
           
           {docsLoading ? (
@@ -505,7 +505,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
             }`}>
               <FileText className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-slate-500' : 'text-[#A59D84]/50'}`} />
               <p className={`text-lg ${isDark ? 'text-slate-400' : 'text-[#A59D84]'}`}>
-                Henüz yüklenmiş döküman yok
+                No documents uploaded yet
               </p>
               {isOwner && (
                 <motion.button
@@ -518,7 +518,7 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                       : 'bg-[#A59D84] text-white hover:bg-[#A59D84]/80'
                   }`}
                 >
-                  İlk Dökümanını Yükle
+                  Upload Your First Document
                 </motion.button>
               )}
             </div>
@@ -564,10 +564,10 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                 </p>
                 <div className={`flex items-center gap-1 text-xs ${isDark ? 'text-slate-500' : 'text-[#A59D84]/70'}`}>
                   <Heart className="w-3 h-3" />
-                  {project.likes} beğeni
+                  {project.likes} likes
                 </div>
                 <p className={`text-[10px] mt-2 text-center ${isDark ? 'text-slate-500' : 'text-[#A59D84]/60'}`}>
-                  Tıklayarak detayları görüntüleyin
+                  Click to view details
                 </p>
               </motion.div>
             ))}
@@ -647,10 +647,10 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
 
                 {/* Modal Body */}
                 <div className="p-8 space-y-6">
-                  {/* Açıklama */}
+                  {/* Description */}
                   <div>
                     <h3 className={`text-xl font-semibold mb-3 ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                      Proje Açıklaması
+                      Project Description
                     </h3>
                     <p className={`text-base leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       {selectedProject.description}
@@ -676,9 +676,9 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                         }`}
                       >
                         {copiedBlobId ? (
-                          <><CheckCircle className="w-3 h-3" /> Kopyalandı</>
+                          <><CheckCircle className="w-3 h-3" /> Copied</>
                         ) : (
-                          <><Copy className="w-3 h-3" /> Kopyala</>
+                          <><Copy className="w-3 h-3" /> Copy</>
                         )}
                       </motion.button>
                     </div>
@@ -701,15 +701,15 @@ function ProfilePage({ theme, setTheme }: ProfilePageProps) {
                       }`}
                     >
                       <FileText className="w-6 h-6" />
-                      İndir (.pdf)
+                      Download (.pdf)
                     </motion.button>
                   </div>
 
-                  {/* Beğeni bilgisi (sadece görüntüleme) */}
+                  {/* Like info (view only) */}
                   <div className={`flex items-center justify-center gap-2 pt-4 border-t ${isDark ? 'border-[#5C3E94]/30' : 'border-[#C1BAA1]/30'}`}>
                     <Heart className={`w-5 h-5 ${isDark ? 'text-[#F25912]' : 'text-[#A59D84]'}`} />
                     <span className={`text-lg font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {selectedProject.likes} beğeni
+                      {selectedProject.likes} likes
                     </span>
                   </div>
                 </div>

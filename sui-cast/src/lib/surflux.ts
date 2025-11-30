@@ -12,9 +12,9 @@ import { PACKAGE_ID } from './contracts';
 
 const SURFLUX_API_KEY = import.meta.env.VITE_SURFLUX_API_KEY;
 
-// Testnet için flux endpoint
+// Flux endpoint for Testnet
 const SURFLUX_FLUX_URL = 'https://testnet-flux.surflux.dev/events';
-// Mainnet için: 'https://flux.surflux.dev/events'
+// For Mainnet: 'https://flux.surflux.dev/events'
 
 // ==================== TYPES ====================
 
@@ -57,13 +57,13 @@ export interface ParsedDocumentEvent {
 // ==================== HOOKS ====================
 
 /**
- * Surflux Flux Streams bağlantı durumu
+ * Surflux Flux Streams connection status
  */
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 /**
  * Generic Surflux Event Stream Hook
- * SSE (Server-Sent Events) kullanarak real-time blockchain event'lerini dinler
+ * Listens to real-time blockchain events using SSE (Server-Sent Events)
  */
 export function useSurfluxStream(options?: {
   onEvent?: (event: SurfluxEvent) => void;
@@ -79,7 +79,7 @@ export function useSurfluxStream(options?: {
   const reconnectAttempts = useRef(0);
 
   const connect = useCallback(() => {
-    // API key kontrolü
+    // API key check
     if (!SURFLUX_API_KEY || SURFLUX_API_KEY === 'your_surflux_api_key_here') {
       console.warn('[Surflux] API key not configured. Real-time updates disabled.');
       setStatus('disconnected');
@@ -87,26 +87,24 @@ export function useSurfluxStream(options?: {
     }
 
 
-    // Mevcut bağlantıyı kapat
+    // Close existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
     setStatus('connecting');
 
-    // URL oluştur
+    // Create URL
     let url = `${SURFLUX_FLUX_URL}?api-key=${SURFLUX_API_KEY}`;
     if (lastEventId) {
       url += `&last-id=${lastEventId}`;
     }
 
-    console.log('[Surflux] Connecting to Flux Streams...');
 
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
-      console.log('[Surflux] Connected to Flux Streams');
       setStatus('connected');
       setLastError(null);
       reconnectAttempts.current = 0;
@@ -135,7 +133,6 @@ export function useSurfluxStream(options?: {
       const backoff = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
       reconnectAttempts.current += 1;
       
-      console.log(`[Surflux] Reconnecting in ${backoff}ms...`);
       reconnectTimeoutRef.current = setTimeout(() => {
         if (enabled) {
           connect();
@@ -154,7 +151,6 @@ export function useSurfluxStream(options?: {
       eventSourceRef.current = null;
     }
     setStatus('disconnected');
-    console.log('[Surflux] Disconnected from Flux Streams');
   }, []);
 
   useEffect(() => {
@@ -180,7 +176,7 @@ export function useSurfluxStream(options?: {
 
 /**
  * Document Events Hook
- * DocumentUploaded ve DocumentVoted event'lerini dinler
+ * Listens to DocumentUploaded and DocumentVoted events
  */
 export function useDocumentEventStream(options?: {
   onDocumentUploaded?: (event: DocumentUploadedEvent, txHash: string) => void;
@@ -193,22 +189,21 @@ export function useDocumentEventStream(options?: {
   const isFirstConnection = useRef(true);
 
   const handleEvent = useCallback((event: SurfluxEvent) => {
-    // Sadece package_event'leri işle
+    // Process only package_event
     if (event.type !== 'package_event') return;
 
     const eventType = event.data.event_type;
     
-    // Bizim package'ımıza ait event mi kontrol et
+    // Check if event belongs to our package
     if (!eventType.includes(PACKAGE_ID)) return;
 
-    // Daha önce işlenmiş event'i tekrar işleme (duplicate prevention)
+    // Do not process already processed event (duplicate prevention)
     if (processedTxHashes.current.has(event.tx_hash)) {
-      console.log('[Surflux] Skipping duplicate event:', event.tx_hash);
       return;
     }
     processedTxHashes.current.add(event.tx_hash);
     
-    // Set'i 1000 elemandan fazla büyümesin diye temizle
+    // Clean Set if it grows larger than 1000 elements
     if (processedTxHashes.current.size > 1000) {
       const entries = Array.from(processedTxHashes.current);
       processedTxHashes.current = new Set(entries.slice(-500));
@@ -227,16 +222,15 @@ export function useDocumentEventStream(options?: {
         timestamp: Number(contents.timestamp || event.timestamp_ms),
       };
 
-      console.log('[Surflux] New document uploaded:', uploadEvent.title);
       
       setRecentEvents(prev => [{
         eventType: 'DocumentUploaded',
         txHash: event.tx_hash,
         timestamp: event.timestamp_ms,
         data: uploadEvent,
-      }, ...prev.slice(0, 49)]); // Son 50 event'i tut
+      }, ...prev.slice(0, 49)]); // Keep last 50 events
 
-      // İlk bağlantıda eski event'ler için callback çağırma
+      // Do not call callback for old events on first connection
       if (!isFirstConnection.current) {
         onDocumentUploaded?.(uploadEvent, event.tx_hash);
       }
@@ -250,7 +244,6 @@ export function useDocumentEventStream(options?: {
         new_vote_count: Number(contents.new_vote_count || 0),
       };
 
-      console.log('[Surflux] Document voted:', voteEvent.document_id, 'votes:', voteEvent.new_vote_count);
       
       setRecentEvents(prev => [{
         eventType: 'DocumentVoted',
@@ -259,14 +252,14 @@ export function useDocumentEventStream(options?: {
         data: voteEvent,
       }, ...prev.slice(0, 49)]);
 
-      // İlk bağlantıda eski event'ler için callback çağırma
+      // Do not call callback for old events on first connection
       if (!isFirstConnection.current) {
         onDocumentVoted?.(voteEvent, event.tx_hash);
       }
     }
     
-    // İlk event işlendikten sonra flag'i false yap (bundan sonraki event'ler yeni)
-    // Küçük bir gecikme ile, stream'in başlangıç event'lerini atlaması için
+    // Set flag to false after first event processed (subsequent events are new)
+    // With a small delay, to skip initial stream events
     setTimeout(() => {
       isFirstConnection.current = false;
     }, 2000);
@@ -288,7 +281,7 @@ export function useDocumentEventStream(options?: {
 }
 
 /**
- * Surflux API key konfigüre edilmiş mi kontrol et
+ * Check if Surflux API key is configured
  */
 export function isSurfluxConfigured(): boolean {
   return !!SURFLUX_API_KEY && SURFLUX_API_KEY !== 'your_surflux_api_key_here';

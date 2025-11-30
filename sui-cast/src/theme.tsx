@@ -6,19 +6,19 @@ export const darkTheme: ThemeVars = {
   backgroundColors: {
     ...lightTheme.backgroundColors,
 
-    // Ana buton & modal
+    // Main button & modal
     primaryButton: '#1f2937',        // bg-slate-800
     primaryButtonHover: '#111827',   // bg-slate-900
     outlineButtonHover: '#0f172a',
-    modalOverlay: 'rgba(15, 23, 42, 0.75)', // daha koyu overlay
+    modalOverlay: 'rgba(15, 23, 42, 0.75)', // darker overlay
     modalPrimary: '#020617',         // bg-slate-950
     modalSecondary: '#020617',
 
-    // 🔹 ÖNEMLİ KISIM: ConnectButton dropdown/accordion
-    dropdownMenu: '#020617',         // accordion arka planı
+    // 🔹 IMPORTANT PART: ConnectButton dropdown/accordion
+    dropdownMenu: '#020617',         // accordion background
     dropdownMenuSeparator: '#111827',
 
-    // Icon & wallet item durumları
+    // Icon & wallet item states
     iconButton: 'transparent',
     iconButtonHover: '#111827',
     walletItemHover: '#111827',

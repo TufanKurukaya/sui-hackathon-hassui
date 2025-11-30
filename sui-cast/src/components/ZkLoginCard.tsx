@@ -11,7 +11,7 @@ import {
 } from '@mysten/sui/zklogin';
 import { jwtDecode } from 'jwt-decode';
 
-// -------------------- ENV & SABİTLER -------------------- //
+// -------------------- ENV & CONSTANTS -------------------- //
 const FULLNODE_URL =
   import.meta.env.VITE_SUI_RPC_URL ?? getFullnodeUrl('testnet');
 
@@ -23,33 +23,33 @@ const PROVER_URL =
 
 const client = new SuiClient({ url: FULLNODE_URL });
 
-// SessionStorage key'leri
+// SessionStorage keys
 const SESSION_JWT_KEY = 'sui_jwt_token';
 const SESSION_ZKLOGIN_DATA_KEY = 'zklogin_ephemeral_data';
 
-// JWT payload tipini basit tutuyoruz
+// Keeping JWT payload type simple
 type JwtPayload = {
   email?: string;
   sub?: string;
   aud?: string | string[];
 };
 
-// login sırasında saklayacağımız veriler
+// Data to store during login
 type StoredZkLoginData = {
   maxEpoch: number;
   randomness: string; // BigInt string
   ephemeralSecretKey: string; // Bech32 secret key (suiprivkey...)
 };
 
-// Prover'dan dönen partial signature tipi
+// Partial signature type returned from Prover
 type PartialZkLoginSignatureInputs = Omit<
   ZkLoginSignatureInputs,
   'addressSeed'
 >;
 
-// -------------------- KÜÇÜK YARDIMCI FONKSİYONLAR -------------------- //
+// -------------------- SMALL HELPER FUNCTIONS -------------------- //
 
-// Basit bir string -> number hash (tutorial'deki gibi)
+// Simple string -> number hash (like in the tutorial)
 function hashcode(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -59,16 +59,16 @@ function hashcode(s: string): string {
   return BigInt(h >>> 0).toString();
 }
 
-// JWT içinden salt üret (demo için e-mail / sub kullanıyoruz)
+// Generate salt from JWT (using email / sub for demo)
 function getSaltFromJwt(payload: JwtPayload): string {
   const base = payload.email ?? payload.sub ?? 'default-user';
   return hashcode(base);
 }
 
-// Google OAuth'a yönlendiren fonksiyon
+// Function redirecting to Google OAuth
 async function startGoogleLogin() {
   if (!GOOGLE_CLIENT_ID) {
-    alert('VITE_GOOGLE_CLIENT_ID tanımlı değil!');
+    alert('VITE_GOOGLE_CLIENT_ID is not defined!');
     return;
   }
 
@@ -105,7 +105,7 @@ async function startGoogleLogin() {
   window.location.href = authUrl;
 }
 
-// ZK prover'a istek atan fonksiyon
+// Function sending request to ZK prover
 async function requestZkProof(opts: {
   jwt: string;
   salt: string;
@@ -142,7 +142,7 @@ async function requestZkProof(opts: {
   return data;
 }
 
-// -------------------- KOMPONENT -------------------- //
+// -------------------- COMPONENT -------------------- //
 
 const ZkLoginCard: React.FC = () => {
   const [address, setAddress] = useState<string | null>(null);
@@ -150,33 +150,33 @@ const ZkLoginCard: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Debug: Tüm URL bilgisini logla
+    // Debug: Log all URL info
 
 
-    // Google OAuth id_token'ı URL fragment (#) içinde döndürür, query string (?) içinde değil
-    // Örnek: https://site.com/#id_token=xxx&authuser=0
-    const hash = window.location.hash.substring(1); // # işaretini kaldır
+    // Google OAuth returns id_token in URL fragment (#), not in query string (?)
+    // Example: https://site.com/#id_token=xxx&authuser=0
+    const hash = window.location.hash.substring(1); // Remove # sign
     
     const hashParams = new URLSearchParams(hash);
     const idToken = hashParams.get('id_token');
 
-    // Session storage'da ephemeral data var mı kontrol et
+    // Check if ephemeral data exists in session storage
     const existingZkData = sessionStorage.getItem(SESSION_ZKLOGIN_DATA_KEY);
 
     if (!idToken) {
-      // Belki query string'de gelmiştir (bazı konfigürasyonlarda)
+      // Maybe it came in query string (in some configurations)
       const url = new URL(window.location.href);
       const queryToken = url.searchParams.get('id_token');
       
       if (!queryToken) {
         return;
       }
-      // Query string'den geldiyse onu kullan
+      // If came from query string, use it
       processToken(queryToken);
       return;
     }
 
-    // Hash'i temizle
+    // Clear hash
     window.history.replaceState({}, '', window.location.pathname + window.location.search);
 
     processToken(idToken);
@@ -190,14 +190,14 @@ const ZkLoginCard: React.FC = () => {
     try {
       decoded = jwtDecode<JwtPayload>(idToken);
     } catch (e) {
-      console.error('JWT decode hatası:', e);
-      setStatus('JWT çözümlenemedi.');
+      console.error('JWT decode error:', e);
+      setStatus('JWT could not be decoded.');
       return;
     }
 
     const stored = sessionStorage.getItem(SESSION_ZKLOGIN_DATA_KEY);
     if (!stored) {
-      setStatus('Ephemeral anahtar bulunamadı. Lütfen tekrar giriş yap.');
+      setStatus('Ephemeral key not found. Please log in again.');
       return;
     }
 
@@ -208,7 +208,7 @@ const ZkLoginCard: React.FC = () => {
     setAddress(zkAddress);
 
     setLoading(true);
-    setStatus('ZK proof üretiliyor (prover çağrılıyor)...');
+    setStatus('Generating ZK proof (calling prover)...');
 
     requestZkProof({
       jwt: idToken,
@@ -219,13 +219,13 @@ const ZkLoginCard: React.FC = () => {
     })
       .then((proof) => {
         setStatus(
-          'zkLogin hazır! Bu oturumda bu adresle işlem imzalayabilirsin (proof + ephemeral key elinde).',
+          'zkLogin ready! You can sign transactions with this address in this session (proof + ephemeral key in hand).',
         );
       })
       .catch((err) => {
-        console.error('Prover isteği hata verdi:', err);
+        console.error('Prover request failed:', err);
         setStatus(
-          `Prover isteğinde hata oluştu: ${(err as Error).message}. Yine de adresin üretildi.`,
+          `Error in Prover request: ${(err as Error).message}. Your address was generated anyway.`,
         );
       })
       .finally(() => setLoading(false));
@@ -238,7 +238,7 @@ const ZkLoginCard: React.FC = () => {
       await startGoogleLogin();
     } catch (e) {
       console.error(e);
-      setStatus('Google login başlatılırken hata oluştu.');
+      setStatus('Error starting Google login.');
       setLoading(false);
     }
   };
@@ -251,8 +251,8 @@ const ZkLoginCard: React.FC = () => {
             42 zkLogin Portal
           </h1>
           <p className="text-sm text-slate-400 text-center mb-6">
-            Öğrenci ürettiği içeriğin sahibi olsun. Google hesabınla giriş yap,
-            senin için Sui üstünde zkLogin cüzdanı oluşturulsun.
+            Let the student own the content they produce. Log in with your Google account,
+            and a zkLogin wallet will be created for you on Sui.
           </p>
 
           <button
@@ -263,12 +263,12 @@ const ZkLoginCard: React.FC = () => {
             <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-white text-xs font-bold text-slate-900">
               G
             </span>
-            <span>Google ile Devam Et</span>
+            <span>Continue with Google</span>
           </button>
 
           {loading && (
             <p className="mt-4 text-xs text-sky-300">
-              İşlem devam ediyor... (redirect veya prover çağrısı olabilir)
+              Processing... (could be redirect or prover call)
             </p>
           )}
 
@@ -281,7 +281,7 @@ const ZkLoginCard: React.FC = () => {
           {address && (
             <div className="mt-6 border-t border-slate-800 pt-4">
               <p className="text-xs text-slate-400 mb-1">
-                Sui zkLogin adresin:
+                Your Sui zkLogin address:
               </p>
               <p className="font-mono text-xs break-all text-sky-300">
                 {address}
@@ -291,8 +291,8 @@ const ZkLoginCard: React.FC = () => {
         </div>
 
         <p className="mt-4 text-center text-xs text-slate-500">
-          Bu sadece demo akışı. Production için kendi prover servisini ve salt
-          yönetimini kurman gerekiyor.
+          This is just a demo flow. For production, you need to set up your own prover service and salt
+          management.
         </p>
       </div>
     </div>

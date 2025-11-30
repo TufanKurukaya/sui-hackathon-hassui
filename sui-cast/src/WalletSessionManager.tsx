@@ -5,7 +5,7 @@ export default function WalletSessionManager() {
   const account = useCurrentAccount();
   const wallets = useWallets();
 
-  // Wallet bağlanınca provider adını kaydet (sadece kayıt için)
+  // Save provider name when wallet is connected (for record only)
   useEffect(() => {
     if (account?.address) {
       const activeProvider = wallets.find(w =>
